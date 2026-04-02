@@ -1,18 +1,9 @@
-import oracledb
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-CORS(app)
 
-# --- ORACLE INIT ---
-try:
-    oracledb.init_oracle_client(
-        lib_dir=r"C:\Users\Lito\Downloads\instantclient-basic-windows.x64-23.26.1.0.0\instantclient_23_26"
-    )
-except Exception as e:
-    print(f"Oracle Error: {e}")
-
+# --- CREATE APP ---
 app = Flask(__name__)
 
 # --- CONFIG ---
@@ -20,6 +11,7 @@ app.config["SECRET_KEY"] = "secret"
 app.config["SQLALCHEMY_DATABASE_URI"] = "oracle+oracledb://dotado:202400926@localhost:1521/?service_name=XE"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+# --- INIT ---
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 CORS(app)
@@ -39,15 +31,12 @@ def register():
     email = data.get("email", "")
     student_id = data.get("student_id_number", "")
 
-    # ✅ EMAIL VALIDATION
     if not email.endswith("@gbox.adnu.edu.ph"):
         return jsonify({"message": "Use ADNU GBOX email only"}), 400
 
-    # ✅ STUDENT ID VALIDATION
     if "-" not in student_id:
         return jsonify({"message": "Student ID must contain '-'"}), 400
 
-    # ✅ CHECK DUPLICATE
     existing = db.session.execute(
         db.text("SELECT COUNT(*) FROM USERS WHERE email = :email"),
         {"email": email}
@@ -109,9 +98,7 @@ def login():
     if not res:
         return jsonify({"message": "User not found"}), 404
 
-    stored_password = str(res[3])
-
-    if bcrypt.check_password_hash(stored_password, data.get("password")):
+    if bcrypt.check_password_hash(res[3], data.get("password")):
         return jsonify({
             "user_id": res[0],
             "name": res[1],
@@ -192,4 +179,4 @@ def create_product():
 # ---------------- RUN ---------------- #
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
