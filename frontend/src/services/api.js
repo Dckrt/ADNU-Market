@@ -1,31 +1,40 @@
 import axios from 'axios';
 
+// 🔥 AUTO SWITCH (LOCAL vs DEPLOY)
+const baseURL =
+  window.location.hostname === "localhost"
+    ? "http://127.0.0.1:5000/api"   // 👉 local backend
+    : "https://adnu-market.onrender.com/api"; // 👉 deployed backend
+
 const apiClient = axios.create({
-  baseURL: 'https://adnu-market.onrender.com/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// 🔐 Attach token (FIXED)
+// 🔐 Attach user_id (safe)
 apiClient.interceptors.request.use((config) => {
-  const user = JSON.parse(localStorage.getItem('user'));
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
 
-  // ✅ if may user, gamitin user_id as simple auth (since wala ka JWT)
-  if (user && user.user_id) {
-    config.headers['X-User-ID'] = user.user_id;
+    if (user?.user_id) {
+      config.headers['X-User-ID'] = user.user_id;
+    }
+  } catch (e) {
+    console.warn("Invalid user in localStorage");
   }
 
   return config;
 });
 
-// 🔥 Global error handler
+// 🔥 Global error handler (NO HANG)
 apiClient.interceptors.response.use(
   res => res,
   err => {
     console.error("API Error:", err.response?.data || err.message);
 
-    // 🔥 IMPORTANT: para hindi mag-hang
+    // 🔥 return para hindi mag freeze UI
     return Promise.reject(err);
   }
 );

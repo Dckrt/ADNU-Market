@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
@@ -6,9 +7,15 @@ from flask_cors import CORS
 # --- CREATE APP ---
 app = Flask(__name__)
 
-# --- CONFIG ---
+# 🔥 AUTO SWITCH DB (LOCAL vs DEPLOY)
+if os.getenv("RENDER"):
+    # 👉 DEPLOY (no Oracle)
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
+else:
+    # 👉 LOCAL (Oracle)
+    app.config["SQLALCHEMY_DATABASE_URI"] = "oracle+oracledb://dotado:202400926@localhost:1521/?service_name=XE"
+
 app.config["SECRET_KEY"] = "secret"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # --- INIT ---
@@ -16,16 +23,12 @@ db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 CORS(app)
 
-with app.app_context():
-    db.create_all()
 # ---------------- HOME ---------------- #
-
 @app.route("/")
 def home():
     return "Backend is running!"
 
 # ---------------- AUTH ---------------- #
-
 @app.route("/api/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -100,7 +103,7 @@ def login():
     if not res:
         return jsonify({"message": "User not found"}), 404
 
-    if bcrypt.check_password_hash(res[3], data.get("password")):
+    if bcrypt.check_password_hash(str(res[3]), data.get("password")):
         return jsonify({
             "user_id": res[0],
             "name": res[1],
@@ -115,7 +118,6 @@ def login():
 
 
 # ---------------- PRODUCTS ---------------- #
-
 @app.route("/api/products", methods=["GET"])
 def get_products():
     result = db.session.execute(db.text("""
@@ -179,6 +181,5 @@ def create_product():
 
 
 # ---------------- RUN ---------------- #
-
 if __name__ == "__main__":
     app.run(debug=True)
