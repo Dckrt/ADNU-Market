@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # --- CONFIG ---
 app.config["SECRET_KEY"] = "secret"
-app.config["SQLALCHEMY_DATABASE_URI"] = "oracle+oracledb://dotado:202400926@localhost:1521/?service_name=XE"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # --- INIT ---
@@ -16,6 +16,8 @@ db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 CORS(app)
 
+with app.app_context():
+    db.create_all()
 # ---------------- HOME ---------------- #
 
 @app.route("/")
