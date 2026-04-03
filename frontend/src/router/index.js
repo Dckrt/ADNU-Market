@@ -8,6 +8,7 @@ import CartView from '@/views/CartView.vue'
 import Profile from '@/views/Profile.vue'
 import AddProduct from '@/views/AddProduct.vue'
 import ProductDetails from '@/views/ProductDetails.vue'
+import ChatPage from '@/views/ChatPage.vue'
 
 const routes = [
   // 🔐 Auth
@@ -34,8 +35,11 @@ const routes = [
   // ➕ Add Product
   { path: '/add-product', name: 'AddProduct', component: AddProduct },
 
+  { path: '/chat', name: 'Chat', component: ChatPage },
+
   // ❗ Catch-all (fallback)
   { path: '/:pathMatch(.*)*', redirect: '/' }
+
 ]
 
 const router = createRouter({

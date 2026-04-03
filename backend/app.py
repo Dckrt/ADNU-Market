@@ -311,6 +311,72 @@ def checkout():
         print("CHECKOUT ERROR:", e)
         return jsonify({"message": "Server error"}), 500
 
+# ================= MESSAGES ================= #
+
+@app.route("/api/messages", methods=["POST"])
+def send_message():
+    data = request.get_json()
+
+    try:
+        db.session.execute(db.text("""
+            INSERT INTO MESSAGES (
+                id, sender_id, receiver_id, message_text, sent_at
+            )
+            VALUES (
+                messages_seq.NEXTVAL,
+                :sender,
+                :receiver,
+                :message,
+                SYSDATE
+            )
+        """), {
+            "sender": data.get("sender_id"),
+            "receiver": data.get("receiver_id"),
+            "message": data.get("message_text")
+        })
+
+        db.session.commit()
+        return jsonify({"message": "Message sent"}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print("MESSAGE ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
+
+
+@app.route("/api/messages", methods=["GET"])
+def get_messages():
+    sender = request.args.get("sender_id")
+    receiver = request.args.get("receiver_id")
+
+    try:
+        result = db.session.execute(db.text("""
+            SELECT sender_id, receiver_id, message_text, sent_at
+            FROM MESSAGES
+            WHERE 
+                (sender_id = :sender AND receiver_id = :receiver)
+                OR
+                (sender_id = :receiver AND receiver_id = :sender)
+            ORDER BY sent_at ASC
+        """), {
+            "sender": sender,
+            "receiver": receiver
+        })
+
+        messages = []
+        for row in result:
+            messages.append({
+                "sender_id": row[0],
+                "receiver_id": row[1],
+                "message_text": row[2],
+                "sent_at": str(row[3])
+            })
+
+        return jsonify(messages)
+
+    except Exception as e:
+        print("GET MESSAGES ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

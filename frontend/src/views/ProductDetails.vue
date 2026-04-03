@@ -70,6 +70,10 @@
               </button>
             </div>
 
+            <button @click="handleChatSeller" class="btn-outline">
+              💬 Chat Seller
+            </button>
+
             <p class="note">
               Meet only in safe campus areas like Richards Hall.
             </p>
@@ -147,6 +151,19 @@ const formatPrice = (v) =>
 
 const formatDate = (d) =>
   d ? new Date(d).toLocaleDateString() : 'N/A'
+
+const handleChatSeller = () => {
+  const user = JSON.parse(localStorage.getItem('user'))
+
+  if (!user) return router.push('/auth')
+
+  router.push({
+    path: '/chat',
+    query: {
+      seller_id: product.value.seller_id
+    }
+  })
+}
 </script>
 
 <style scoped>
