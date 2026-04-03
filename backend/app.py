@@ -1,34 +1,34 @@
-import os
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
+import oracledb
 
-# --- CREATE APP ---
+# 🔥 ENABLE THICK MODE (required for Oracle XE older versions)
+oracledb.init_oracle_client(
+        lib_dir=r"C:\Users\Lito\Downloads\instantclient-basic-windows.x64-23.26.1.0.0\instantclient_23_26"
+    )
+
 app = Flask(__name__)
 
-# 🔥 AUTO SWITCH DB (LOCAL vs DEPLOY)
-if os.getenv("RENDER"):
-    # 👉 DEPLOY (no Oracle)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
-else:
-    # 👉 LOCAL (Oracle)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "oracle+oracledb://dotado:202400926@localhost:1521/?service_name=XE"
-
+# 🔥 ORACLE CONFIG
+app.config["SQLALCHEMY_DATABASE_URI"] = "oracle+oracledb://dotado:202400926@localhost:1521/?service_name=XE"
 app.config["SECRET_KEY"] = "secret"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# --- INIT ---
+# 🔥 INIT
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
-CORS(app)
 
-# ---------------- HOME ---------------- #
+# ✅ FIXED CORS
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
 @app.route("/")
 def home():
-    return "Backend is running!"
+    return "Backend running!"
 
-# ---------------- AUTH ---------------- #
+# ================= AUTH ================= #
+
 @app.route("/api/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -50,7 +50,9 @@ def register():
     if existing > 0:
         return jsonify({"message": "Email already registered"}), 400
 
-    hashed_pw = bcrypt.generate_password_hash(data.get("password")).decode("utf-8")
+    hashed_pw = bcrypt.generate_password_hash(
+        data.get("password")
+    ).decode("utf-8")
 
     try:
         db.session.execute(db.text("""
@@ -83,7 +85,8 @@ def register():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        print("REGISTER ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
 
 
 @app.route("/api/login", methods=["POST"])
@@ -117,7 +120,8 @@ def login():
     return jsonify({"message": "Invalid password"}), 401
 
 
-# ---------------- PRODUCTS ---------------- #
+# ================= PRODUCTS ================= #
+
 @app.route("/api/products", methods=["GET"])
 def get_products():
     result = db.session.execute(db.text("""
@@ -177,9 +181,9 @@ def create_product():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        print("PRODUCT ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
 
 
-# ---------------- RUN ---------------- #
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
