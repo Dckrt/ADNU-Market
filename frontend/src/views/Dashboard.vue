@@ -53,7 +53,13 @@
       <div v-else-if="products.length > 0" class="product-grid">
         <div v-for="product in products" :key="product.id" class="product-card">
           <div class="card-top">
-            <div class="card-img-placeholder">
+            <img
+              v-if="product.image_url"
+              :src="product.image_url"
+              class="card-img"
+              alt="Product image"
+            />
+            <div v-else class="card-img-placeholder">
               <i class="fa-solid fa-image"></i>
             </div>
             <div class="card-badges">
@@ -103,9 +109,49 @@
     </div>
 
     <!-- EDIT MODAL -->
-    <div v-if="showEditModal" class="modal-overlay">
+    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
       <div class="modal">
         <h3><i class="fa-solid fa-pen"></i> Edit Product</h3>
+
+        <!-- Image Upload -->
+        <div class="input-group">
+          <label>Product Image</label>
+          <div
+            class="image-upload-area"
+            @click="triggerFileInput"
+            @dragover.prevent
+            @drop.prevent="handleDrop"
+          >
+            <img
+              v-if="imagePreview"
+              :src="imagePreview"
+              class="image-preview"
+              alt="Preview"
+            />
+            <div v-else class="upload-placeholder">
+              <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+              <p>Click or drag to upload a new photo</p>
+              <span>JPG, PNG, WEBP — max 5MB</span>
+            </div>
+            <div v-if="imagePreview" class="image-overlay">
+              <i class="fa-solid fa-camera"></i> Change Photo
+            </div>
+          </div>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            style="display: none"
+            @change="handleFileChange"
+          />
+          <button
+            v-if="imagePreview && imagePreview !== editForm.existing_image_url"
+            class="remove-img-btn"
+            @click="removeNewImage"
+          >
+            <i class="fa-solid fa-xmark"></i> Remove new image
+          </button>
+        </div>
 
         <div class="input-group">
           <label>Title</label>
@@ -136,6 +182,7 @@
         <div class="modal-btns">
           <button class="cancel-btn" @click="showEditModal = false">Cancel</button>
           <button class="save-btn" @click="saveEdit" :disabled="saving">
+            <i class="fa-solid fa-floppy-disk"></i>
             {{ saving ? 'Saving...' : 'Save Changes' }}
           </button>
         </div>
@@ -143,7 +190,7 @@
     </div>
 
     <!-- DELETE CONFIRM MODAL -->
-    <div v-if="showDeleteModal" class="modal-overlay">
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
       <div class="modal">
         <div class="delete-icon">🗑️</div>
         <h3>Delete Product?</h3>
@@ -176,7 +223,19 @@ const totalProducts = ref(0)
 // Edit
 const showEditModal = ref(false)
 const saving = ref(false)
-const editForm = ref({ id: null, title: '', price: '', category: '', description: '' })
+const editForm = ref({
+  id: null,
+  title: '',
+  price: '',
+  category: '',
+  description: '',
+  existing_image_url: ''
+})
+
+// Image upload
+const fileInputRef = ref(null)
+const imagePreview = ref(null)
+const selectedFile = ref(null)
 
 // Delete
 const showDeleteModal = ref(false)
@@ -187,14 +246,14 @@ const user = JSON.parse(localStorage.getItem('user'))
 
 const totalPages = computed(() => Math.max(1, Math.ceil(totalProducts.value / limit)))
 
+// ✅ FIXED: uses getMyProducts so ALL your listings show up regardless of pagination
 const fetchProducts = async () => {
   loading.value = true
   try {
-    const res = await API.getProducts({ page: page.value, limit })
+    const res = await API.getMyProducts(user.user_id)
     const data = Array.isArray(res.data) ? res.data : (res.data.products || [])
-    // Only show current user's products
-    products.value = user ? data.filter(p => p.seller_id === user.user_id) : data
-    totalProducts.value = products.value.length
+    products.value = data
+    totalProducts.value = data.length
   } catch (err) {
     console.error('Dashboard Fetch Error:', err)
   } finally {
@@ -208,21 +267,65 @@ const openEdit = (product) => {
     title: product.title,
     price: product.price,
     category: product.category,
-    description: product.description
+    description: product.description,
+    existing_image_url: product.image_url || ''
   }
+  imagePreview.value = product.image_url || null
+  selectedFile.value = null
   showEditModal.value = true
+}
+
+// Image handling
+const triggerFileInput = () => fileInputRef.value?.click()
+
+const handleFileChange = (e) => {
+  const file = e.target.files[0]
+  if (file) processFile(file)
+}
+
+const handleDrop = (e) => {
+  const file = e.dataTransfer.files[0]
+  if (file && file.type.startsWith('image/')) processFile(file)
+}
+
+const processFile = (file) => {
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image must be under 5MB.')
+    return
+  }
+  selectedFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+}
+
+const removeNewImage = () => {
+  selectedFile.value = null
+  imagePreview.value = editForm.value.existing_image_url || null
+  if (fileInputRef.value) fileInputRef.value.value = ''
 }
 
 const saveEdit = async () => {
   try {
     saving.value = true
-    await API.updateProduct(editForm.value.id, {
-      title: editForm.value.title,
-      price: Number(editForm.value.price),
-      category: editForm.value.category,
-      description: editForm.value.description,
-      user_id: user.user_id
-    })
+
+    if (selectedFile.value) {
+      const formData = new FormData()
+      formData.append('title', editForm.value.title)
+      formData.append('price', Number(editForm.value.price))
+      formData.append('category', editForm.value.category)
+      formData.append('description', editForm.value.description)
+      formData.append('user_id', user.user_id)
+      formData.append('image', selectedFile.value)
+      await API.updateProductWithImage(editForm.value.id, formData)
+    } else {
+      await API.updateProduct(editForm.value.id, {
+        title: editForm.value.title,
+        price: Number(editForm.value.price),
+        category: editForm.value.category,
+        description: editForm.value.description,
+        user_id: user.user_id
+      })
+    }
+
     alert('Product updated! ✅')
     showEditModal.value = false
     fetchProducts()
@@ -296,10 +399,10 @@ watch(page, fetchProducts)
 
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.5rem; }
 
-/* Product Card */
 .product-card { background: white; border-radius: 12px; border: 0.5px solid #eee; overflow: hidden; transition: 0.2s; }
 .product-card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
 
+.card-img { width: 100%; height: 140px; object-fit: cover; display: block; }
 .card-img-placeholder { height: 140px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 2rem; }
 
 .card-badges { display: flex; justify-content: space-between; padding: 8px 12px; }
@@ -327,13 +430,11 @@ watch(page, fetchProducts)
 }
 .delete-btn:hover { background: #e74c3c; color: white; }
 
-/* Empty */
 .empty-state { text-align: center; padding: 5rem 2rem; background: white; border-radius: 16px; border: 1px dashed #cbd5e1; }
 .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
 .empty-state h3 { color: #003366; font-size: 1.1rem; margin: 0 0 8px; }
 .empty-state p { color: #888; font-size: 0.9rem; margin: 0 0 1.5rem; }
 
-/* Pagination */
 .pagination-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 3rem; padding-bottom: 2rem; }
 .page-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid #e2e8f0; background: white; border-radius: 8px; cursor: pointer; font-weight: 600; color: #003366; font-size: 0.875rem; transition: 0.2s; }
 .page-btn:hover:not(:disabled) { background-color: #003366; color: white; border-color: #003366; }
@@ -343,10 +444,38 @@ watch(page, fetchProducts)
 .page-num:hover { border-color: #003366; color: #003366; }
 .page-num.active { background: #003366; color: white; border-color: #003366; }
 
-/* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal { background: white; border-radius: 16px; padding: 2rem; width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 1rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal { background: white; border-radius: 16px; padding: 2rem; width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 1rem; max-height: 90vh; overflow-y: auto; }
 .modal h3 { color: #003366; font-size: 1.1rem; margin: 0; display: flex; align-items: center; gap: 8px; }
+
+.image-upload-area {
+  position: relative; border: 2px dashed #cbd5e1; border-radius: 10px;
+  cursor: pointer; overflow: hidden; transition: border-color 0.2s;
+  min-height: 140px; display: flex; align-items: center; justify-content: center;
+}
+.image-upload-area:hover { border-color: #003366; }
+
+.upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 1.5rem; color: #888; text-align: center; }
+.upload-icon { font-size: 2rem; color: #003366; margin-bottom: 4px; }
+.upload-placeholder p { margin: 0; font-size: 0.875rem; font-weight: 600; color: #555; }
+.upload-placeholder span { font-size: 0.75rem; color: #aaa; }
+
+.image-preview { width: 100%; height: 180px; object-fit: cover; display: block; }
+
+.image-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 0.875rem; font-weight: 700; gap: 8px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.image-upload-area:hover .image-overlay { opacity: 1; }
+
+.remove-img-btn {
+  background: none; border: none; color: #e74c3c; font-size: 0.8rem;
+  font-weight: 700; cursor: pointer; padding: 4px 0;
+  display: flex; align-items: center; gap: 5px;
+}
+.remove-img-btn:hover { text-decoration: underline; }
 
 .input-group { display: flex; flex-direction: column; gap: 5px; }
 .input-group label { font-size: 0.78rem; font-weight: 700; color: #003366; text-transform: uppercase; }
@@ -356,7 +485,7 @@ watch(page, fetchProducts)
 .modal-btns { display: flex; gap: 10px; margin-top: 0.5rem; }
 .cancel-btn { flex: 1; background: white; color: #555; border: 1px solid #ddd; padding: 11px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .cancel-btn:hover { background: #f0f0f0; }
-.save-btn { flex: 1; background: #003366; color: white; border: none; padding: 11px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.save-btn { flex: 1; background: #003366; color: white; border: none; padding: 11px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .save-btn:hover:not(:disabled) { background: #002244; }
 .save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 

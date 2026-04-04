@@ -30,9 +30,13 @@ export default {
 
   // PRODUCTS
   getProducts: (params = {}) => apiClient.get('/products', { params }),
+  getMyProducts: (userId) => apiClient.get('/products', { params: { seller_id: userId } }),
   getProduct: (id) => apiClient.get(`/products/${id}`),
   createProduct: (data) => apiClient.post('/products', data),
   updateProduct: (id, data) => apiClient.put(`/products/${id}`, data),
+  updateProductWithImage: (id, formData) => apiClient.put(`/products/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   deleteProduct: (id, userId) => apiClient.delete(`/products/${id}`, { params: { user_id: userId } }),
 
   // CART
@@ -45,11 +49,13 @@ export default {
 
   // MESSAGES
   sendMessage: (data) => apiClient.post('/messages', data),
-  getMessages: (sender_id, receiver_id) => apiClient.get('/messages', { params: { sender_id, receiver_id } }),
+  getMessages: (userId, partnerId) => apiClient.get('/messages', { params: { sender_id: userId, receiver_id: partnerId } }),
+  getThreads: (userId) => apiClient.get('/messages/threads', { params: { user_id: userId } }),
+  getUnreadCount: (userId) => apiClient.get('/messages/unread-count', { params: { user_id: userId } }),
 
   // NOTIFICATIONS
   getNotifications: (userId) => apiClient.get('/notifications', { params: { user_id: userId } }),
 
   // REVIEWS
-  addReview: (data) => apiClient.post('/reviews', data)
+  addReview: (data) => apiClient.post('/reviews', data),
 }

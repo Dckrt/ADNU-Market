@@ -14,6 +14,12 @@
         <router-link to="/products" class="nav-item">Market</router-link>
         <router-link to="/dashboard" class="nav-item">My Shop</router-link>
 
+        <!-- Messages -->
+        <router-link to="/messages" class="icon-btn" v-if="auth.user">
+          <i class="fa-solid fa-message"></i>
+          <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+        </router-link>
+
         <!-- Notifications -->
         <div class="icon-btn notif" @click="toggleNotif" v-click-outside="() => showNotif = false">
           <i class="fa-solid fa-bell"></i>
@@ -51,6 +57,9 @@
             <router-link to="/dashboard" @click="showMenu = false">
               <i class="fa-solid fa-store"></i> My Shop
             </router-link>
+            <router-link to="/messages" @click="showMenu = false">
+              <i class="fa-solid fa-message"></i> Messages
+            </router-link>
             <router-link to="/add-product" @click="showMenu = false">
               <i class="fa-solid fa-plus"></i> Sell Item
             </router-link>
@@ -79,6 +88,7 @@ const auth = useAuthStore()
 const router = useRouter()
 
 const cartCount = ref(0)
+const unreadCount = ref(0)
 const showMenu = ref(false)
 const showNotif = ref(false)
 const notifications = ref([
@@ -111,6 +121,16 @@ const fetchCart = async () => {
   }
 }
 
+const fetchUnreadMessages = async () => {
+  if (!auth.user) return
+  try {
+    const res = await api.getUnreadCount(auth.user.user_id)
+    unreadCount.value = res.data?.count || 0
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 const toggleMenu = () => { showMenu.value = !showMenu.value }
 const toggleNotif = () => { showNotif.value = !showNotif.value }
 
@@ -118,11 +138,11 @@ const logout = () => {
   localStorage.removeItem('user')
   auth.user = null
   cartCount.value = 0
+  unreadCount.value = 0
   showMenu.value = false
   router.push('/auth')
 }
 
-// Click outside directive
 const vClickOutside = {
   mounted(el, binding) {
     el._clickOutside = (e) => { if (!el.contains(e.target)) binding.value(e) }
@@ -136,6 +156,7 @@ const vClickOutside = {
 onMounted(async () => {
   loadUser()
   await fetchCart()
+  await fetchUnreadMessages()
 })
 </script>
 
@@ -189,7 +210,8 @@ onMounted(async () => {
   transition: 0.2s;
 }
 
-.nav-item:hover, .nav-item.router-link-active {
+.nav-item:hover,
+.nav-item.router-link-active {
   color: white;
   background: rgba(255,255,255,0.12);
 }
@@ -210,6 +232,12 @@ onMounted(async () => {
 }
 
 .icon-btn:hover { background: rgba(255,255,255,0.12); color: white; }
+
+/* Active state for messages icon */
+.icon-btn.router-link-active {
+  color: #FFD700;
+  background: rgba(255,255,255,0.12);
+}
 
 .badge {
   position: absolute;
@@ -307,7 +335,8 @@ onMounted(async () => {
   background: #eee;
 }
 
-.dropdown a, .dropdown button {
+.dropdown a,
+.dropdown button {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -323,7 +352,8 @@ onMounted(async () => {
   transition: 0.15s;
 }
 
-.dropdown a:hover, .dropdown button:hover {
+.dropdown a:hover,
+.dropdown button:hover {
   background: #f0f4ff;
   color: #003366;
 }

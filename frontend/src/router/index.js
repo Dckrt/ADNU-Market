@@ -9,6 +9,7 @@ import Profile from '@/views/Profile.vue'
 import AddProduct from '@/views/AddProduct.vue'
 import ProductDetails from '@/views/ProductDetails.vue'
 import ChatPage from '@/views/ChatPage.vue'
+import MessagesPage from '@/views/MessagesPage.vue'
 
 const routes = [
   // 🔐 Auth
@@ -36,6 +37,8 @@ const routes = [
   { path: '/add-product', name: 'AddProduct', component: AddProduct },
 
   { path: '/chat', name: 'Chat', component: ChatPage },
+
+  { path: '/messages', component: MessagesPage },
 
   // ❗ Catch-all (fallback)
   { path: '/:pathMatch(.*)*', redirect: '/' }
