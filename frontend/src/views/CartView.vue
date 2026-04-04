@@ -5,10 +5,14 @@
       <!-- Header -->
       <div class="page-header">
         <div class="header-left">
-          <i class="fa-solid fa-cart-shopping header-icon"></i>
+          <div class="header-icon-box">
+            <i class="fa-solid fa-cart-shopping"></i>
+          </div>
           <div>
             <h1 class="page-title">My Cart</h1>
-            <p class="page-sub" v-if="cartItems.length">{{ cartItems.length }} item{{ cartItems.length > 1 ? 's' : '' }} ready for pickup</p>
+            <p class="page-sub" v-if="cartItems.length">
+              {{ cartItems.length }} item{{ cartItems.length > 1 ? 's' : '' }} ready for pickup
+            </p>
           </div>
         </div>
         <router-link to="/products" class="continue-link">
@@ -25,35 +29,45 @@
       <!-- Cart Layout -->
       <div v-else-if="cartItems.length" class="cart-layout">
 
-        <!-- Items -->
+        <!-- Items List -->
         <div class="items-col">
           <TransitionGroup name="cart-item" tag="div">
             <div v-for="item in cartItems" :key="item.cart_id" class="cart-card">
+
+              <!-- Image -->
               <div class="card-img-wrap">
-                <img :src="item.image_url || '/placeholder.png'" class="cart-img" />
-                <span class="category-badge" v-if="item.category">{{ item.category }}</span>
+                <img :src="item.image_url || '/placeholder.png'" class="cart-img" :alt="item.title" />
+                <span class="cat-badge">{{ item.category }}</span>
               </div>
 
-              <div class="card-body">
-                <div class="card-top">
-                  <h3 class="item-title">{{ item.title }}</h3>
-                  <button @click="removeItem(item.cart_id)" class="remove-btn" title="Remove item">
+              <!-- Info -->
+              <div class="card-info">
+                <div class="card-info-top">
+                  <div>
+                    <h3 class="item-title">{{ item.title }}</h3>
+                    <p class="item-seller">
+                      <i class="fa-solid fa-store"></i>
+                      {{ item.seller_name || 'ADNU Student' }}
+                    </p>
+                  </div>
+                  <button @click="removeItem(item.cart_id)" class="remove-btn" title="Remove">
                     <i class="fa-solid fa-xmark"></i>
                   </button>
                 </div>
 
-                <p class="item-seller">
-                  <i class="fa-solid fa-store"></i>
-                  {{ item.seller_name || 'Ateneo Student' }}
-                </p>
-
-                <div class="card-bottom">
-                  <span class="item-price">₱{{ Number(item.price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</span>
-                  <span class="item-status">
-                    <i class="fa-solid fa-circle-check"></i> Available
-                  </span>
+                <div class="card-info-bottom">
+                  <span class="item-price">₱{{ formatPrice(item.price) }}</span>
+                  <div class="item-actions">
+                    <span class="status-chip">
+                      <i class="fa-solid fa-circle-check"></i> Available
+                    </span>
+                    <button class="msg-btn" @click="chatSeller(item)" title="Message seller">
+                      <i class="fa-solid fa-comment-dots"></i> Chat Seller
+                    </button>
+                  </div>
                 </div>
               </div>
+
             </div>
           </TransitionGroup>
         </div>
@@ -61,12 +75,13 @@
         <!-- Order Summary -->
         <div class="summary-col">
           <div class="summary-card">
+
             <h3 class="summary-title">Order Summary</h3>
 
             <div class="summary-lines">
               <div class="summary-line" v-for="item in cartItems" :key="'s-' + item.cart_id">
-                <span class="summary-item-name">{{ item.title }}</span>
-                <span>₱{{ Number(item.price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</span>
+                <span class="summary-name">{{ item.title }}</span>
+                <span class="summary-price">₱{{ formatPrice(item.price) }}</span>
               </div>
             </div>
 
@@ -74,12 +89,14 @@
 
             <div class="summary-total">
               <span>Total</span>
-              <span class="total-amount">₱{{ total.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</span>
+              <span class="total-amount">₱{{ formatPrice(total) }}</span>
             </div>
 
             <!-- Pickup Location -->
-            <div class="input-group">
-              <label><i class="fa-solid fa-location-dot"></i> Pickup Location</label>
+            <div class="field-group">
+              <label>
+                <i class="fa-solid fa-location-dot"></i> Pickup Location
+              </label>
               <div class="select-wrap">
                 <select v-model="checkout.location">
                   <option>Richards Hall Lobby</option>
@@ -92,39 +109,50 @@
             </div>
 
             <!-- Payment Method -->
-            <div class="input-group">
-              <label><i class="fa-solid fa-wallet"></i> Payment Method</label>
-              <div class="select-wrap">
-                <select v-model="checkout.payment">
-                  <option>Cash on Delivery</option>
-                  <option>GCash</option>
-                  <option>Bank Transfer</option>
-                </select>
-                <i class="fa-solid fa-chevron-down select-arrow"></i>
+            <div class="field-group">
+              <label>
+                <i class="fa-solid fa-wallet"></i> Payment Method
+              </label>
+              <div class="pay-options">
+                <button
+                  v-for="method in paymentMethods"
+                  :key="method.value"
+                  class="pay-option"
+                  :class="{ active: checkout.payment === method.value }"
+                  @click="checkout.payment = method.value"
+                  type="button"
+                >
+                  <i :class="method.icon"></i>
+                  {{ method.label }}
+                </button>
               </div>
             </div>
 
-            <!-- Payment badge -->
-            <div class="payment-badge" v-if="checkout.payment === 'GCash'">
-              <i class="fa-solid fa-mobile-screen-button"></i> GCash number will be shared after order
+            <!-- Payment Info -->
+            <div class="payment-info" v-if="checkout.payment === 'GCash'">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+              GCash number will be shared after order
             </div>
-            <div class="payment-badge cod" v-else-if="checkout.payment === 'Cash on Delivery'">
-              <i class="fa-solid fa-money-bill-wave"></i> Pay in cash upon meetup
+            <div class="payment-info cod" v-else-if="checkout.payment === 'Cash on Delivery'">
+              <i class="fa-solid fa-money-bill-wave"></i>
+              Pay in cash upon meetup
+            </div>
+            <div class="payment-info bank" v-else>
+              <i class="fa-solid fa-building-columns"></i>
+              Bank details will be shared after order
             </div>
 
             <button @click="processOrder" class="checkout-btn" :disabled="checkingOut">
-              <span v-if="checkingOut">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Processing...
-              </span>
-              <span v-else>
-                <i class="fa-solid fa-bag-shopping"></i> Place Order
-              </span>
+              <i class="fa-solid fa-circle-notch fa-spin" v-if="checkingOut"></i>
+              <i class="fa-solid fa-bag-shopping" v-else></i>
+              {{ checkingOut ? 'Processing...' : 'Place Order' }}
             </button>
 
             <p class="safety-note">
               <i class="fa-solid fa-shield-halved"></i>
-              Meet only in safe, public campus areas.
+              Meet only in safe, public campus areas
             </p>
+
           </div>
         </div>
 
@@ -133,7 +161,7 @@
       <!-- Empty State -->
       <div v-else class="empty-state">
         <div class="empty-icon-wrap">
-          <i class="fa-solid fa-cart-shopping empty-icon"></i>
+          <i class="fa-solid fa-cart-shopping"></i>
         </div>
         <h3>Your cart is empty</h3>
         <p>Looks like you haven't added anything yet.</p>
@@ -162,6 +190,12 @@ const checkout = ref({
   payment: 'Cash on Delivery'
 })
 
+const paymentMethods = [
+  { value: 'Cash on Delivery', label: 'Cash', icon: 'fa-solid fa-money-bill-wave' },
+  { value: 'GCash',            label: 'GCash', icon: 'fa-solid fa-mobile-screen-button' },
+  { value: 'Bank Transfer',    label: 'Bank', icon: 'fa-solid fa-building-columns' }
+]
+
 const fetchCart = async () => {
   if (!user) return router.push('/auth')
   try {
@@ -180,14 +214,27 @@ const total = computed(() =>
   cartItems.value.reduce((sum, item) => sum + Number(item.price), 0)
 )
 
+const formatPrice = (v) =>
+  Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+
 const removeItem = async (id) => {
   try {
     await api.removeFromCart(id)
     cartItems.value = cartItems.value.filter(i => i.cart_id !== id)
   } catch (err) {
-    console.error('Remove error:', err)
     alert('Failed to remove item.')
   }
+}
+
+const chatSeller = (item) => {
+  if (!user) return router.push('/auth')
+  router.push({
+    path: '/chat',
+    query: {
+      seller_id: item.seller_id,
+      seller_name: item.seller_name
+    }
+  })
 }
 
 const processOrder = async () => {
@@ -199,11 +246,10 @@ const processOrder = async () => {
       location: checkout.value.location,
       payment: checkout.value.payment
     })
-    alert('Order placed successfully! 🎉')
+    alert('Order placed successfully! 🎉 Coordinate with sellers for pickup.')
     cartItems.value = []
     router.push('/')
   } catch (err) {
-    console.error('Checkout error:', err)
     alert(err.response?.data?.message || 'Checkout failed. Please try again.')
   } finally {
     checkingOut.value = false
@@ -220,10 +266,7 @@ onMounted(fetchCart)
   padding: 2rem 1.5rem 4rem;
 }
 
-.cart-container {
-  max-width: 1000px;
-  margin: 0 auto;
-}
+.cart-container { max-width: 1020px; margin: 0 auto; }
 
 /* Header */
 .page-header {
@@ -235,76 +278,50 @@ onMounted(fetchCart)
   gap: 12px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
+.header-left { display: flex; align-items: center; gap: 14px; }
 
-.header-icon {
-  font-size: 1.6rem;
-  color: #003366;
-  background: #FFD700;
+.header-icon-box {
   width: 52px;
   height: 52px;
+  background: #FFD700;
+  color: #003366;
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #003366;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-sub {
-  font-size: 0.82rem;
-  color: #888;
-  margin: 2px 0 0;
-}
+.page-title { font-size: 1.5rem; font-weight: 800; color: #003366; margin: 0; }
+.page-sub { font-size: 0.82rem; color: #888; margin: 2px 0 0; }
 
 .continue-link {
-  font-size: 0.85rem;
-  color: #003366;
-  text-decoration: none;
-  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #003366;
+  text-decoration: none;
+  padding: 8px 16px;
   border: 1.5px solid #d0dbe8;
   border-radius: 8px;
-  transition: 0.2s;
   background: white;
+  transition: 0.2s;
 }
-
-.continue-link:hover {
-  background: #003366;
-  color: white;
-  border-color: #003366;
-}
+.continue-link:hover { background: #003366; color: white; border-color: #003366; }
 
 /* Loading */
-.loading-state {
-  text-align: center;
-  padding: 5rem;
-  color: #888;
-}
-
+.loading-state { text-align: center; padding: 5rem; color: #888; }
 .spinner {
-  width: 36px;
-  height: 36px;
+  width: 36px; height: 36px;
   border: 3px solid #e0e0e0;
   border-top-color: #003366;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   margin: 0 auto 1rem;
 }
-
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Layout */
@@ -320,37 +337,29 @@ onMounted(fetchCart)
   display: flex;
   gap: 16px;
   background: white;
-  padding: 16px;
   border-radius: 14px;
-  margin-bottom: 12px;
   border: 1px solid #e8eef4;
+  padding: 14px;
+  margin-bottom: 12px;
   transition: box-shadow 0.2s, transform 0.2s;
 }
+.cart-card:hover { box-shadow: 0 4px 20px rgba(0,51,102,0.08); transform: translateY(-1px); }
 
-.cart-card:hover {
-  box-shadow: 0 4px 20px rgba(0, 51, 102, 0.08);
-  transform: translateY(-1px);
-}
-
-.card-img-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
+.card-img-wrap { position: relative; flex-shrink: 0; }
 
 .cart-img {
-  width: 90px;
-  height: 90px;
+  width: 96px;
+  height: 96px;
   object-fit: cover;
   border-radius: 10px;
   background: #f0f4f8;
   display: block;
 }
 
-.category-badge {
+.cat-badge {
   position: absolute;
-  bottom: 4px;
-  left: 4px;
-  background: rgba(0, 51, 102, 0.82);
+  bottom: 5px; left: 5px;
+  background: rgba(0,51,102,0.85);
   color: white;
   font-size: 9px;
   font-weight: 700;
@@ -360,53 +369,25 @@ onMounted(fetchCart)
   letter-spacing: 0.5px;
 }
 
-.card-body {
+.card-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
-.card-top {
+.card-info-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
 }
 
-.item-title {
-  font-size: 0.97rem;
-  font-weight: 700;
-  color: #003366;
-  margin: 0;
-  line-height: 1.3;
-}
-
-.remove-btn {
-  background: none;
-  border: 1px solid #e8eef4;
-  border-radius: 6px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #bbb;
-  flex-shrink: 0;
-  transition: 0.2s;
-  font-size: 13px;
-}
-
-.remove-btn:hover {
-  background: #fff0f0;
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
+.item-title { font-size: 0.97rem; font-weight: 700; color: #003366; margin: 0 0 4px; }
 
 .item-seller {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #999;
   margin: 0;
   display: flex;
@@ -414,39 +395,74 @@ onMounted(fetchCart)
   gap: 5px;
 }
 
-.card-bottom {
+.remove-btn {
+  width: 30px; height: 30px;
+  border: 1px solid #e8eef4;
+  border-radius: 7px;
+  background: none;
+  color: #bbb;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: 0.2s;
+}
+.remove-btn:hover { background: #fff0f0; color: #e74c3c; border-color: #e74c3c; }
+
+.card-info-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: auto;
 }
 
-.item-price {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #e74c3c;
-}
+.item-price { font-size: 1.05rem; font-weight: 800; color: #e74c3c; }
 
-.item-status {
-  font-size: 0.75rem;
-  color: #22c55e;
-  font-weight: 600;
+.item-actions { display: flex; align-items: center; gap: 8px; }
+
+.status-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #16a34a;
+  background: #f0fdf4;
+  padding: 4px 8px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-/* Summary Card */
-.summary-col {
-  position: sticky;
-  top: 80px;
+.msg-btn {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #003366;
+  background: #f0f4ff;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: 0.2s;
 }
+.msg-btn:hover { background: #003366; color: white; }
+
+/* Summary */
+.summary-col { position: sticky; top: 80px; }
 
 .summary-card {
   background: white;
   border-radius: 16px;
   padding: 1.5rem;
   border: 1px solid #e8eef4;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .summary-title {
@@ -464,30 +480,24 @@ onMounted(fetchCart)
   flex-direction: column;
   gap: 8px;
   margin-bottom: 12px;
-  max-height: 160px;
+  max-height: 150px;
   overflow-y: auto;
 }
 
-.summary-line {
-  display: flex;
-  justify-content: space-between;
+.summary-line { display: flex; justify-content: space-between; gap: 8px; }
+
+.summary-name {
   font-size: 0.82rem;
   color: #666;
-  gap: 8px;
-}
-
-.summary-item-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 170px;
+  max-width: 160px;
 }
 
-.summary-divider {
-  height: 1px;
-  background: #eee;
-  margin: 10px 0;
-}
+.summary-price { font-size: 0.82rem; color: #333; font-weight: 600; white-space: nowrap; }
+
+.summary-divider { height: 1px; background: #eee; margin: 4px 0 12px; }
 
 .summary-total {
   display: flex;
@@ -499,33 +509,24 @@ onMounted(fetchCart)
   margin-bottom: 1.25rem;
 }
 
-.total-amount {
-  color: #e74c3c;
-  font-size: 1.15rem;
-}
+.total-amount { color: #e74c3c; font-size: 1.15rem; }
 
-/* Inputs */
-.input-group {
+/* Fields */
+.field-group { margin-bottom: 14px; }
+
+.field-group label {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 12px;
-}
-
-.input-group label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #003366;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  margin-bottom: 7px;
 }
 
-.select-wrap {
-  position: relative;
-}
+.select-wrap { position: relative; }
 
 select {
   width: 100%;
@@ -537,40 +538,57 @@ select {
   background: #f8fafc;
   appearance: none;
   cursor: pointer;
-  transition: border-color 0.2s;
   outline: none;
+  transition: border-color 0.2s;
 }
-
 select:focus { border-color: #003366; }
 
 .select-arrow {
   position: absolute;
-  right: 12px;
-  top: 50%;
+  right: 12px; top: 50%;
   transform: translateY(-50%);
   font-size: 10px;
   color: #999;
   pointer-events: none;
 }
 
-/* Payment badge */
-.payment-badge {
+/* Payment options */
+.pay-options { display: flex; gap: 8px; }
+
+.pay-option {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: 0.2s;
+}
+.pay-option:hover { border-color: #003366; color: #003366; }
+.pay-option.active { background: #003366; color: white; border-color: #003366; }
+
+/* Payment Info */
+.payment-info {
   background: #e8f0fe;
   color: #185FA5;
   font-size: 0.78rem;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
-
-.payment-badge.cod {
-  background: #e8f8ee;
-  color: #1a7a40;
-}
+.payment-info.cod { background: #f0fdf4; color: #15803d; }
+.payment-info.bank { background: #fffbeb; color: #92400e; }
 
 /* Checkout Button */
 .checkout-btn {
@@ -583,37 +601,32 @@ select:focus { border-color: #003366; }
   font-weight: 800;
   font-size: 0.95rem;
   cursor: pointer;
-  margin-top: 4px;
-  transition: 0.25s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition: 0.2s;
+  margin-bottom: 10px;
 }
-
 .checkout-btn:hover:not(:disabled) {
   background: #002244;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 51, 102, 0.25);
+  box-shadow: 0 6px 18px rgba(0,51,102,0.25);
 }
-
-.checkout-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
+.checkout-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
 .safety-note {
   text-align: center;
   font-size: 0.75rem;
   color: #aaa;
-  margin: 12px 0 0;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
 }
 
-/* Empty State */
+/* Empty */
 .empty-state {
   text-align: center;
   padding: 5rem 2rem;
@@ -623,33 +636,19 @@ select:focus { border-color: #003366; }
 }
 
 .empty-icon-wrap {
-  width: 80px;
-  height: 80px;
+  width: 80px; height: 80px;
   background: #f0f4f8;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.25rem;
-}
-
-.empty-icon {
   font-size: 2rem;
   color: #c0cdd8;
 }
 
-.empty-state h3 {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: #003366;
-  margin: 0 0 6px;
-}
-
-.empty-state p {
-  color: #aaa;
-  font-size: 0.9rem;
-  margin: 0 0 1.5rem;
-}
+.empty-state h3 { font-size: 1.2rem; font-weight: 800; color: #003366; margin: 0 0 6px; }
+.empty-state p { color: #aaa; font-size: 0.9rem; margin: 0 0 1.5rem; }
 
 .browse-btn {
   background: #003366;
@@ -665,49 +664,19 @@ select:focus { border-color: #003366; }
   gap: 8px;
   transition: 0.2s;
 }
-
-.browse-btn:hover {
-  background: #002244;
-  transform: translateY(-1px);
-}
+.browse-btn:hover { background: #002244; transform: translateY(-1px); }
 
 /* Transitions */
-.cart-item-enter-active,
-.cart-item-leave-active {
-  transition: all 0.3s ease;
-}
-
-.cart-item-enter-from {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.cart-item-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
+.cart-item-enter-active, .cart-item-leave-active { transition: all 0.3s ease; }
+.cart-item-enter-from { opacity: 0; transform: translateY(-10px); }
+.cart-item-leave-to { opacity: 0; transform: translateX(20px); }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .cart-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .summary-col {
-    position: static;
-  }
-
-  .cart-card {
-    flex-direction: column;
-  }
-
-  .cart-img {
-    width: 100%;
-    height: 180px;
-  }
-
-  .card-img-wrap {
-    width: 100%;
-  }
+  .cart-layout { grid-template-columns: 1fr; }
+  .summary-col { position: static; }
+  .cart-card { flex-direction: column; }
+  .cart-img { width: 100%; height: 180px; }
+  .card-img-wrap { width: 100%; }
 }
 </style>

@@ -34,6 +34,9 @@ export default {
   getProduct: (id) => apiClient.get(`/products/${id}`),
   createProduct: (data) => apiClient.post('/products', data),
   updateProduct: (id, data) => apiClient.put(`/products/${id}`, data),
+  updateProductWithImage: (id, formData) => apiClient.put(`/products/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   deleteProduct: (id, userId) => apiClient.delete(`/products/${id}`, { params: { user_id: userId } }),
 
   // CART
@@ -44,13 +47,20 @@ export default {
   // CHECKOUT
   checkout: (data) => apiClient.post('/checkout', data),
 
-  // MESSAGES
+  // MESSAGES — ✅ Number() cast fixes string vs int mismatch in Oracle query
   sendMessage: (data) => apiClient.post('/messages', data),
-  getMessages: (userId, partnerId) => apiClient.get('/messages', { params: { sender_id: userId, receiver_id: partnerId } }),
+  getMessages: (userId, partnerId) => apiClient.get('/messages', {
+    params: {
+      sender_id: Number(userId),
+      receiver_id: Number(partnerId)
+    }
+  }),
   getThreads: (userId) => apiClient.get('/messages/threads', { params: { user_id: userId } }),
   getUnreadCount: (userId) => apiClient.get('/messages/unread-count', { params: { user_id: userId } }),
 
   // NOTIFICATIONS
   getNotifications: (userId) => apiClient.get('/notifications', { params: { user_id: userId } }),
-  markNotificationsRead: (userId) => apiClient.post('/notifications/read', { user_id: userId }),
+
+  // REVIEWS
+  addReview: (data) => apiClient.post('/reviews', data),
 }
