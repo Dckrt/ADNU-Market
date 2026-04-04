@@ -34,9 +34,6 @@ export default {
   getProduct: (id) => apiClient.get(`/products/${id}`),
   createProduct: (data) => apiClient.post('/products', data),
   updateProduct: (id, data) => apiClient.put(`/products/${id}`, data),
-  updateProductWithImage: (id, formData) => apiClient.put(`/products/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
   deleteProduct: (id, userId) => apiClient.delete(`/products/${id}`, { params: { user_id: userId } }),
 
   // CART
@@ -55,7 +52,5 @@ export default {
 
   // NOTIFICATIONS
   getNotifications: (userId) => apiClient.get('/notifications', { params: { user_id: userId } }),
-
-  // REVIEWS
-  addReview: (data) => apiClient.post('/reviews', data),
+  markNotificationsRead: (userId) => apiClient.post('/notifications/read', { user_id: userId }),
 }

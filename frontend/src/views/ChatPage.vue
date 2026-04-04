@@ -1,54 +1,57 @@
 <template>
-  <div class="chat-wrapper">
-    <div class="chat-layout">
+  <div class="messages-page">
+    <div class="messages-layout">
 
-      <!-- Sidebar: Conversations -->
-      <div class="chat-sidebar">
+      <!-- Sidebar -->
+      <div class="thread-sidebar">
         <div class="sidebar-header">
           <h2>Messages</h2>
         </div>
-        <div class="conversations">
-          <div class="empty-convos" v-if="!receiver_id">
-            <i class="fa-solid fa-comment-dots"></i>
-            <p>No conversation selected</p>
-          </div>
-          <div v-else class="convo-item active">
-            <div class="convo-avatar">{{ receiverInitial }}</div>
-            <div class="convo-info">
-              <p class="convo-name">{{ receiverName || 'Seller' }}</p>
-              <p class="convo-preview">{{ messages[messages.length - 1]?.message_text || 'No messages yet' }}</p>
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input v-model="search" placeholder="Search conversations..." />
+        </div>
+        <div class="thread-list">
+          <p v-if="filteredThreads.length === 0" class="empty-threads">No conversations yet.</p>
+          <div
+            v-for="thread in filteredThreads"
+            :key="thread.seller_id"
+            class="thread-item"
+            :class="{ active: activeThread?.seller_id === thread.seller_id }"
+            @click="openThread(thread)"
+          >
+            <div class="avatar">{{ thread.seller_name?.charAt(0)?.toUpperCase() || '?' }}</div>
+            <div class="thread-info">
+              <div class="thread-top">
+                <span class="thread-name">{{ thread.seller_name }}</span>
+                <span class="thread-time">{{ formatTime(thread.last_time) }}</span>
+              </div>
+              <p class="thread-preview">{{ thread.last_message || 'Start a conversation' }}</p>
             </div>
+            <span v-if="thread.unread" class="unread-dot"></span>
           </div>
         </div>
       </div>
 
-      <!-- Chat Area -->
-      <div class="chat-main">
-
-        <!-- Chat Header -->
-        <div class="chat-header" v-if="receiver_id">
-          <div class="chat-avatar">{{ receiverInitial }}</div>
+      <!-- Chat Window -->
+      <div class="chat-window" v-if="activeThread">
+        <div class="chat-header">
+          <div class="avatar gold">{{ activeThread.seller_name?.charAt(0)?.toUpperCase() }}</div>
           <div>
-            <p class="chat-name">{{ receiverName || 'Seller' }}</p>
-            <p class="chat-status">ADNU Student</p>
+            <p class="chat-partner-name">{{ activeThread.seller_name }}</p>
+            <span class="chat-status">ADNU Student</span>
           </div>
         </div>
 
-        <div class="no-chat" v-else>
-          <i class="fa-solid fa-comments"></i>
-          <p>Select a conversation to start chatting</p>
-        </div>
-
-        <!-- Messages -->
-        <div class="messages-area" ref="messagesArea" v-if="receiver_id">
+        <div class="message-list" ref="messageListRef">
           <div v-if="messages.length === 0" class="no-messages">
             <p>No messages yet. Say hello! 👋</p>
           </div>
           <div
             v-for="(msg, i) in messages"
             :key="i"
-            class="msg-row"
-            :class="msg.sender_id == user.user_id ? 'mine' : 'theirs'"
+            class="message-row"
+            :class="msg.sender_id == user?.user_id ? 'mine' : 'theirs'"
           >
             <div class="bubble">
               {{ msg.message_text }}
@@ -57,71 +60,107 @@
           </div>
         </div>
 
-        <!-- Input -->
-        <div class="input-area" v-if="receiver_id">
+        <div class="chat-input-row">
           <input
             v-model="newMessage"
             placeholder="Type a message..."
-            @keydown.enter="sendMessage"
+            @keyup.enter="sendMessage"
           />
-          <button @click="sendMessage" :disabled="!newMessage.trim() || sending" class="send-btn">
+          <button class="send-btn" @click="sendMessage" :disabled="!newMessage.trim() || sending">
             <i class="fa-solid fa-paper-plane"></i>
           </button>
         </div>
-
       </div>
+
+      <!-- Empty State -->
+      <div class="empty-chat" v-else>
+        <i class="fa-regular fa-comments empty-icon"></i>
+        <p>Select a conversation to start messaging</p>
+      </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
 
 const route = useRoute()
+const user = JSON.parse(localStorage.getItem('user'))
+
+const threads = ref([])
+const activeThread = ref(null)
 const messages = ref([])
 const newMessage = ref('')
+const search = ref('')
 const sending = ref(false)
-const messagesArea = ref(null)
-const receiverName = ref('')
+const messageListRef = ref(null)
 
-const user = JSON.parse(localStorage.getItem('user'))
-const receiver_id = route.query.seller_id
-
-const receiverInitial = computed(() => {
-  return receiverName.value ? receiverName.value[0].toUpperCase() : 'S'
+const filteredThreads = computed(() => {
+  if (!search.value) return threads.value
+  return threads.value.filter(t =>
+    t.seller_name?.toLowerCase().includes(search.value.toLowerCase())
+  )
 })
 
-const scrollToBottom = async () => {
-  await nextTick()
-  if (messagesArea.value) {
-    messagesArea.value.scrollTop = messagesArea.value.scrollHeight
+const fetchThreads = async () => {
+  try {
+    const res = await api.getThreads(user.user_id)
+    threads.value = res.data || []
+
+    const sellerId = route.query.seller_id
+    if (sellerId) {
+      let thread = threads.value.find(t => String(t.seller_id) === String(sellerId))
+      if (!thread) {
+        thread = {
+          seller_id: sellerId,
+          seller_name: route.query.seller_name || 'Seller',
+          last_message: '',
+          last_time: '',
+          unread: false
+        }
+        threads.value.unshift(thread)
+      }
+      openThread(thread)
+    }
+  } catch (err) {
+    console.error('Fetch threads error:', err)
   }
 }
 
-const loadMessages = async () => {
-  if (!receiver_id) return
+const openThread = async (thread) => {
+  activeThread.value = thread
+  thread.unread = false
   try {
-    const res = await api.getMessages(user.user_id, receiver_id)
-    messages.value = res.data
-    scrollToBottom()
+    const res = await api.getMessages(user.user_id, thread.seller_id)
+    messages.value = res.data || []
+    await scrollToBottom()
   } catch (err) {
-    console.error('Load messages error:', err)
+    console.error('Open thread error:', err)
   }
 }
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || sending.value) return
+  const text = newMessage.value.trim()
   try {
     sending.value = true
     await api.sendMessage({
       sender_id: user.user_id,
-      receiver_id,
-      message_text: newMessage.value.trim()
+      receiver_id: activeThread.value.seller_id,
+      message_text: text
     })
+    messages.value.push({
+      sender_id: user.user_id,
+      receiver_id: activeThread.value.seller_id,
+      message_text: text,
+      sent_at: new Date().toISOString()
+    })
+    if (activeThread.value) activeThread.value.last_message = text
     newMessage.value = ''
-    await loadMessages()
+    await scrollToBottom()
   } catch (err) {
     console.error('Send error:', err)
     alert('Failed to send message ❌')
@@ -130,250 +169,140 @@ const sendMessage = async () => {
   }
 }
 
-const formatTime = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const scrollToBottom = async () => {
+  await nextTick()
+  if (messageListRef.value) {
+    messageListRef.value.scrollTop = messageListRef.value.scrollHeight
+  }
+}
+
+const formatTime = (d) => {
+  if (!d) return ''
+  const date = new Date(d)
+  const now = new Date()
+  const diff = now - date
+  if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))}m ago`
+  if (diff < 86400000) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleDateString()
 }
 
 onMounted(async () => {
-  // Get seller name from query param if passed
-  if (route.query.seller_name) {
-    receiverName.value = route.query.seller_name
-  }
-  await loadMessages()
-
-  // Auto-refresh every 10 seconds
-  setInterval(loadMessages, 10000)
+  await fetchThreads()
+  setInterval(async () => {
+    if (activeThread.value) {
+      const res = await api.getMessages(user.user_id, activeThread.value.seller_id)
+      messages.value = res.data || []
+    }
+  }, 8000)
 })
 </script>
 
 <style scoped>
-.chat-wrapper {
-  background: #f8fafc;
-  min-height: 100vh;
-  padding: 1.5rem;
-}
-
-.chat-layout {
-  max-width: 1000px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  height: calc(100vh - 100px);
-  background: white;
-  border-radius: 16px;
-  border: 0.5px solid #eee;
-  overflow: hidden;
+.messages-page { background: #f8fafc; min-height: 100vh; padding: 24px; }
+.messages-layout {
+  max-width: 1000px; margin: 0 auto;
+  display: grid; grid-template-columns: 280px 1fr;
+  height: calc(100vh - 108px); background: white;
+  border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
 }
 
-/* Sidebar */
-.chat-sidebar {
-  border-right: 1px solid #f1f5f9;
-  display: flex;
-  flex-direction: column;
+.thread-sidebar { border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
+.sidebar-header { padding: 16px; border-bottom: 1px solid #e5e7eb; }
+.sidebar-header h2 { font-size: 1rem; font-weight: 700; color: #003366; margin: 0; }
+
+.search-box {
+  padding: 10px 12px; border-bottom: 1px solid #e5e7eb;
+  display: flex; align-items: center; gap: 8px; color: #aaa;
+}
+.search-box input {
+  flex: 1; border: none; outline: none; font-size: 0.85rem;
+  background: transparent; color: #333;
 }
 
-.sidebar-header {
-  padding: 1.25rem 1rem;
-  border-bottom: 1px solid #f1f5f9;
+.thread-list { overflow-y: auto; flex: 1; }
+.empty-threads { padding: 20px; text-align: center; color: #999; font-size: 0.85rem; }
+
+.thread-item {
+  display: flex; gap: 10px; padding: 12px 14px;
+  cursor: pointer; border-bottom: 1px solid #f5f5f5;
+  align-items: flex-start; transition: background 0.15s; position: relative;
 }
+.thread-item:hover { background: #f0f4ff; }
+.thread-item.active { background: #e8f0fe; }
 
-.sidebar-header h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #003366;
-  margin: 0;
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: #003366; color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
 }
+.avatar.gold { background: #FFD700; color: #003366; }
 
-.conversations { flex: 1; overflow-y: auto; }
+.thread-info { flex: 1; min-width: 0; }
+.thread-top { display: flex; justify-content: space-between; margin-bottom: 2px; }
+.thread-name { font-size: 0.85rem; font-weight: 700; color: #1a1a1a; }
+.thread-time { font-size: 0.7rem; color: #999; }
+.thread-preview { font-size: 0.78rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+.unread-dot { width: 8px; height: 8px; background: #003366; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
 
-.empty-convos {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #ccc;
-  gap: 8px;
-  font-size: 0.85rem;
-}
-
-.empty-convos i { font-size: 2rem; }
-
-.convo-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: 0.15s;
-  border-bottom: 1px solid #f8fafc;
-}
-
-.convo-item:hover, .convo-item.active {
-  background: #f0f4ff;
-}
-
-.convo-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #003366;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-.convo-info { flex: 1; min-width: 0; }
-.convo-name { font-size: 0.875rem; font-weight: 700; color: #003366; margin: 0 0 2px; }
-.convo-preview { font-size: 0.78rem; color: #888; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* Chat Main */
-.chat-main {
-  display: flex;
-  flex-direction: column;
-}
-
+/* Chat Window */
+.chat-window { display: flex; flex-direction: column; }
 .chat-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #f1f5f9;
-  background: white;
+  padding: 12px 16px; border-bottom: 1px solid #e5e7eb;
+  display: flex; align-items: center; gap: 10px;
+}
+.chat-partner-name { font-size: 0.9rem; font-weight: 700; color: #003366; margin: 0 0 2px; }
+.chat-status { font-size: 0.75rem; color: #16a34a; }
+
+.message-list {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px; background: #f8fafc;
 }
 
-.chat-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #FFD700;
-  color: #003366;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1rem;
-}
+.no-messages { text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 2rem; }
 
-.chat-name { font-size: 0.9rem; font-weight: 700; color: #003366; margin: 0 0 2px; }
-.chat-status { font-size: 0.75rem; color: #16a34a; margin: 0; }
-
-.no-chat {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #ccc;
-  gap: 12px;
-  font-size: 0.9rem;
-}
-
-.no-chat i { font-size: 3rem; }
-
-/* Messages */
-.messages-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: #f8fafc;
-}
-
-.no-messages {
-  text-align: center;
-  color: #aaa;
-  font-size: 0.85rem;
-  margin-top: 2rem;
-}
-
-.msg-row {
-  display: flex;
-}
-
-.msg-row.mine { justify-content: flex-end; }
-.msg-row.theirs { justify-content: flex-start; }
+.message-row { display: flex; }
+.message-row.mine { justify-content: flex-end; }
+.message-row.theirs { justify-content: flex-start; }
 
 .bubble {
-  max-width: 65%;
-  padding: 10px 14px;
-  border-radius: 16px;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  position: relative;
+  max-width: 65%; padding: 10px 14px; border-radius: 16px;
+  font-size: 0.875rem; line-height: 1.5;
 }
+.mine .bubble { background: #003366; color: white; border-bottom-right-radius: 4px; }
+.theirs .bubble { background: white; color: #333; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; }
 
-.mine .bubble {
-  background: #003366;
-  color: white;
-  border-bottom-right-radius: 4px;
+.msg-time { display: block; font-size: 0.65rem; margin-top: 4px; opacity: 0.6; text-align: right; }
+
+.chat-input-row {
+  padding: 12px 16px; border-top: 1px solid #e5e7eb;
+  display: flex; gap: 10px; align-items: center; background: white;
 }
-
-.theirs .bubble {
-  background: white;
-  color: #333;
-  border: 0.5px solid #eee;
-  border-bottom-left-radius: 4px;
+.chat-input-row input {
+  flex: 1; padding: 10px 16px; border: 1px solid #e2e8f0;
+  border-radius: 24px; font-size: 0.9rem; outline: none;
 }
-
-.msg-time {
-  display: block;
-  font-size: 0.65rem;
-  margin-top: 4px;
-  opacity: 0.6;
-  text-align: right;
-}
-
-/* Input */
-.input-area {
-  display: flex;
-  gap: 10px;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid #f1f5f9;
-  background: white;
-}
-
-.input-area input {
-  flex: 1;
-  padding: 10px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
-  font-size: 0.9rem;
-  outline: none;
-  transition: 0.2s;
-}
-
-.input-area input:focus { border-color: #003366; }
+.chat-input-row input:focus { border-color: #003366; }
 
 .send-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #003366;
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.2s;
-  flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: #003366; color: #FFD700; border: none;
+  cursor: pointer; display: flex; align-items: center;
+  justify-content: center; font-size: 0.875rem; transition: 0.2s; flex-shrink: 0;
 }
-
 .send-btn:hover:not(:disabled) { background: #002244; transform: scale(1.05); }
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.empty-chat {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; color: #ccc; font-size: 0.9rem;
+  gap: 12px; background: #f8fafc;
+}
+.empty-icon { font-size: 3rem; }
+
 @media (max-width: 640px) {
-  .chat-layout { grid-template-columns: 1fr; }
-  .chat-sidebar { display: none; }
+  .messages-layout { grid-template-columns: 1fr; }
+  .thread-sidebar { display: none; }
 }
 </style>
