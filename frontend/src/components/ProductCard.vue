@@ -1,5 +1,5 @@
 <template>
-  <div class="card" @click="goToDetails">
+  <div class="card">
     <!-- Category & Status -->
     <div class="category-header">
       <span class="category-tag">{{ product.category }}</span>
@@ -8,11 +8,7 @@
 
     <!-- Product Image -->
     <div class="image-container">
-      <img
-        :src="getImage(product.image_url)"
-        :alt="product.title"
-        class="product-image"
-      />
+      <img :src="getImage(product.image_url)" :alt="product.title" class="product-image" />
     </div>
 
     <!-- Content -->
@@ -22,23 +18,18 @@
       <p class="price">₱{{ formatPrice(product.price) }}</p>
 
       <!-- Buttons -->
-      <div class="button-group" @click.stop>
-        <button
-          @click="handleAddToCart"
-          class="cart-btn"
-          title="Add to Cart"
-          :disabled="product.status !== 'Available'"
-        >
+      <div class="button-group">
+        <button @click="handleAddToCart" class="cart-btn" title="Add to Cart" :disabled="product.status !== 'Available'">
           <i class="fa-solid fa-cart-shopping"></i>
         </button>
-        <button
-          @click="goToDetails"
-          class="buy-btn"
-          :disabled="product.status !== 'Available'"
-        >
-          <i class="fa-solid fa-eye"></i> View Item
+        <button @click="router.push('/products/' + product.id)" class="buy-btn" :disabled="product.status !== 'Available'">
+          Buy Now
         </button>
       </div>
+
+      <button @click="router.push('/product-view/' + product.id)" class="details-link">
+        View Details
+      </button>
     </div>
   </div>
 </template>
@@ -50,17 +41,10 @@ import { useRouter } from 'vue-router'
 const props = defineProps(['product'])
 const router = useRouter()
 
-const goToDetails = () => {
-  router.push('/products/' + props.product.id)
-}
-
 const formatPrice = (value) =>
   parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2 })
 
-const getImage = (url) => {
-  if (!url) return '/placeholder-image.png'
-  return url
-}
+const getImage = (url) => url || '/placeholder-image.png'
 
 const handleAddToCart = async () => {
   const user = JSON.parse(localStorage.getItem('user'))
@@ -69,8 +53,7 @@ const handleAddToCart = async () => {
     await api.addToCart({ user_id: user.user_id, product_id: props.product.id })
     alert(`"${props.product.title}" added to cart! ✅`)
   } catch (err) {
-    const msg = err.response?.data?.message || 'Failed to add to cart'
-    alert(msg + ' ❌')
+    alert((err.response?.data?.message || 'Failed to add to cart') + ' ❌')
   }
 }
 </script>
@@ -81,14 +64,12 @@ const handleAddToCart = async () => {
   border-radius: 14px;
   overflow: hidden;
   border: 0.5px solid #eee;
-  cursor: pointer;
   transition: 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,51,102,0.1);
-}
+.card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,51,102,0.1); }
 
 .category-header {
   display: flex;
@@ -106,17 +87,9 @@ const handleAddToCart = async () => {
   border-radius: 4px;
 }
 
-.status-tag {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #16a34a;
-}
+.status-tag { font-size: 0.68rem; font-weight: 700; color: #16a34a; }
 
-.image-container {
-  height: 170px;
-  overflow: hidden;
-  background: #f8fafc;
-}
+.image-container { height: 170px; overflow: hidden; background: #f8fafc; }
 
 .product-image {
   width: 100%;
@@ -129,6 +102,9 @@ const handleAddToCart = async () => {
 
 .card-body {
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .product-title {
@@ -150,17 +126,9 @@ const handleAddToCart = async () => {
   text-overflow: ellipsis;
 }
 
-.price {
-  color: #e74c3c;
-  font-weight: 800;
-  font-size: 1rem;
-  margin: 0 0 10px;
-}
+.price { color: #e74c3c; font-weight: 800; font-size: 1rem; margin: 0 0 10px; }
 
-.button-group {
-  display: flex;
-  gap: 8px;
-}
+.button-group { display: flex; gap: 8px; margin-bottom: 8px; }
 
 .cart-btn {
   width: 40px;
@@ -178,12 +146,7 @@ const handleAddToCart = async () => {
   flex-shrink: 0;
 }
 
-.cart-btn:hover:not(:disabled) {
-  background: #003366;
-  color: white;
-  border-color: #003366;
-}
-
+.cart-btn:hover:not(:disabled) { background: #003366; color: white; border-color: #003366; }
 .cart-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .buy-btn {
@@ -195,15 +158,26 @@ const handleAddToCart = async () => {
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: 0.2s;
-  padding: 0 12px;
   height: 40px;
+  transition: 0.2s;
 }
 
 .buy-btn:hover:not(:disabled) { background: #002244; }
 .buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.details-link {
+  width: 100%;
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #003366;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 7px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.details-link:hover { background: #f0f4ff; border-color: #003366; }
 </style>

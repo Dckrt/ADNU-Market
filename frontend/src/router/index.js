@@ -10,6 +10,7 @@ import AddProduct from '@/views/AddProduct.vue'
 import ProductDetails from '@/views/ProductDetails.vue'
 import ChatPage from '@/views/ChatPage.vue'
 import MessagesPage from '@/views/MessagesPage.vue'
+import ProductView from '@/views/ProductView.vue'
 
 const routes = [
   // 🔐 Auth
