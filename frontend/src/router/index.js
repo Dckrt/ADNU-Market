@@ -41,6 +41,8 @@ const routes = [
 
   { path: '/messages', component: MessagesPage },
 
+  { path: '/product-view/:id', name: 'ProductView', component: ProductView },
+
   // ❗ Catch-all (fallback)
   { path: '/:pathMatch(.*)*', redirect: '/' }
 

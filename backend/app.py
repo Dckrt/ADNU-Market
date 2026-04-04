@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 import oracledb
+import base64
+import os
 
 oracledb.init_oracle_client(
     lib_dir=r"C:\Users\Lito\Downloads\instantclient-basic-windows.x64-23.26.1.0.0\instantclient_23_26"
@@ -13,13 +15,30 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "oracle+oracledb://dotado:202400926@loca
 app.config["SECRET_KEY"] = "secret"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+# Upload folder for product images
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+
+def save_image(file):
+    """Save uploaded image and return its URL path."""
+    if not file:
+        return None
+    filename = f"{os.urandom(8).hex()}_{file.filename.replace(' ', '_')}"
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
+    return f"/static/uploads/{filename}"
+
+
 @app.route("/")
 def home():
     return "Backend running!"
+
 
 # ================= AUTH ================= #
 
@@ -83,22 +102,38 @@ def login():
 def get_products():
     try:
         seller_id = request.args.get("seller_id")
+
+        # ✅ Dashboard: return ALL products for this seller, no pagination
         if seller_id:
             result = db.session.execute(db.text("""
-                SELECT id, title, description, price, category, status, seller_id
-                FROM PRODUCTS WHERE seller_id = :seller_id ORDER BY id DESC
+                SELECT p.id, p.title, p.description, p.price, p.category,
+                       p.status, p.seller_id, p.image_url, u.name AS seller_name
+                FROM PRODUCTS p
+                LEFT JOIN USERS u ON p.seller_id = u.id
+                WHERE p.seller_id = :seller_id
+                ORDER BY p.id DESC
             """), {"seller_id": seller_id})
         else:
+            # Marketplace: all available products
             result = db.session.execute(db.text("""
-                SELECT id, title, description, price, category, status, seller_id
-                FROM PRODUCTS WHERE status = 'Available' ORDER BY id DESC
+                SELECT p.id, p.title, p.description, p.price, p.category,
+                       p.status, p.seller_id, p.image_url, u.name AS seller_name
+                FROM PRODUCTS p
+                LEFT JOIN USERS u ON p.seller_id = u.id
+                WHERE p.status = 'Available'
+                ORDER BY p.id DESC
             """))
+
         products = []
         for row in result:
+            image_url = row[7]
+            if image_url:
+                image_url = f"http://127.0.0.1:5000{image_url}"
             products.append({
                 "id": row[0], "title": row[1], "description": row[2],
                 "price": float(row[3]), "category": row[4], "status": row[5],
-                "seller_id": row[6], "image_url": None
+                "seller_id": row[6], "image_url": image_url,
+                "seller_name": row[8]
             })
         return jsonify(products)
     except Exception as e:
@@ -111,17 +146,23 @@ def get_product(product_id):
     try:
         res = db.session.execute(db.text("""
             SELECT p.id, p.title, p.description, p.price, p.category,
-                   p.status, p.created_at, u.name AS seller_name, p.seller_id
+                   p.status, p.created_at, u.name AS seller_name, p.seller_id, p.image_url
             FROM PRODUCTS p LEFT JOIN USERS u ON p.seller_id = u.id
             WHERE p.id = :id
         """), {"id": product_id}).fetchone()
         if not res:
             return jsonify({"message": "Product not found"}), 404
+
+        image_url = res[9]
+        if image_url:
+            image_url = f"http://127.0.0.1:5000{image_url}"
+
         return jsonify({
             "id": res[0], "title": res[1], "description": res[2],
             "price": float(res[3]), "category": res[4], "status": res[5],
             "created_at": str(res[6]) if res[6] else None,
-            "seller_name": res[7], "seller_id": res[8], "image_url": None
+            "seller_name": res[7], "seller_id": res[8],
+            "image_url": image_url
         })
     except Exception as e:
         print("GET PRODUCT ERROR:", e)
@@ -130,17 +171,34 @@ def get_product(product_id):
 
 @app.route("/api/products", methods=["POST"])
 def create_product():
-    data = request.get_json()
     try:
+        # Support both JSON and multipart/form-data (with image)
+        if request.content_type and "multipart/form-data" in request.content_type:
+            title       = request.form.get("title")
+            description = request.form.get("description")
+            price       = request.form.get("price")
+            category    = request.form.get("category", "General")
+            seller_id   = request.form.get("user_id")
+            image_file  = request.files.get("image")
+            image_url   = save_image(image_file)
+        else:
+            data        = request.get_json()
+            title       = data.get("title")
+            description = data.get("description")
+            price       = data.get("price")
+            category    = data.get("category", "General")
+            seller_id   = data.get("user_id")
+            image_url   = None
+
         db.session.execute(db.text("""
             INSERT INTO PRODUCTS (id, title, description, price,
-                category, seller_id, created_at, status)
+                category, seller_id, created_at, status, image_url)
             VALUES (products_seq.NEXTVAL, :title, :description, :price,
-                :category, :seller_id, SYSDATE, 'Available')
+                :category, :seller_id, SYSDATE, 'Available', :image_url)
         """), {
-            "title": data.get("title"), "description": data.get("description"),
-            "price": data.get("price"), "category": data.get("category", "General"),
-            "seller_id": data.get("user_id")
+            "title": title, "description": description,
+            "price": price, "category": category,
+            "seller_id": seller_id, "image_url": image_url
         })
         db.session.commit()
         return jsonify({"message": "Product created successfully"}), 201
@@ -152,21 +210,52 @@ def create_product():
 
 @app.route("/api/products/<int:product_id>", methods=["PUT"])
 def update_product(product_id):
-    data = request.get_json()
-    user_id = data.get("user_id")
     try:
+        # Support both JSON and multipart/form-data (with image)
+        if request.content_type and "multipart/form-data" in request.content_type:
+            user_id     = request.form.get("user_id")
+            title       = request.form.get("title")
+            description = request.form.get("description")
+            price       = request.form.get("price")
+            category    = request.form.get("category")
+            image_file  = request.files.get("image")
+            new_image   = save_image(image_file)
+        else:
+            data        = request.get_json()
+            user_id     = data.get("user_id")
+            title       = data.get("title")
+            description = data.get("description")
+            price       = data.get("price")
+            category    = data.get("category")
+            new_image   = None
+
         owner = db.session.execute(
             db.text("SELECT seller_id FROM PRODUCTS WHERE id = :id"), {"id": product_id}
         ).scalar()
         if not owner or int(owner) != int(user_id):
             return jsonify({"message": "Unauthorized"}), 403
-        db.session.execute(db.text("""
-            UPDATE PRODUCTS SET title=:title, description=:description,
-                price=:price, category=:category WHERE id=:id
-        """), {
-            "title": data.get("title"), "description": data.get("description"),
-            "price": data.get("price"), "category": data.get("category"), "id": product_id
-        })
+
+        if new_image:
+            # Update including new image
+            db.session.execute(db.text("""
+                UPDATE PRODUCTS SET title=:title, description=:description,
+                    price=:price, category=:category, image_url=:image_url
+                WHERE id=:id
+            """), {
+                "title": title, "description": description,
+                "price": price, "category": category,
+                "image_url": new_image, "id": product_id
+            })
+        else:
+            # Update without changing image
+            db.session.execute(db.text("""
+                UPDATE PRODUCTS SET title=:title, description=:description,
+                    price=:price, category=:category WHERE id=:id
+            """), {
+                "title": title, "description": description,
+                "price": price, "category": category, "id": product_id
+            })
+
         db.session.commit()
         return jsonify({"message": "Product updated successfully"})
     except Exception as e:
@@ -203,7 +292,8 @@ def get_cart():
         return jsonify({"message": "user_id required"}), 400
     try:
         result = db.session.execute(db.text("""
-            SELECT c.id, p.id, p.title, p.price, p.category, p.status, p.seller_id, u.name
+            SELECT c.id, p.id, p.title, p.price, p.category,
+                   p.status, p.seller_id, u.name, p.image_url
             FROM CART c
             JOIN PRODUCTS p ON c.product_id = p.id
             JOIN USERS u ON p.seller_id = u.id
@@ -211,11 +301,14 @@ def get_cart():
         """), {"user_id": user_id})
         items = []
         for row in result:
+            image_url = row[8]
+            if image_url:
+                image_url = f"http://127.0.0.1:5000{image_url}"
             items.append({
                 "cart_id": row[0], "id": row[1], "title": row[2],
                 "price": float(row[3]), "category": row[4],
                 "status": row[5], "seller_id": row[6],
-                "seller_name": row[7], "image_url": None
+                "seller_name": row[7], "image_url": image_url
             })
         return jsonify(items)
     except Exception as e:
@@ -229,7 +322,6 @@ def add_to_cart():
     user_id = data.get("user_id")
     product_id = data.get("product_id")
     try:
-        # Don't allow buying own product
         owner = db.session.execute(
             db.text("SELECT seller_id FROM PRODUCTS WHERE id = :id"), {"id": product_id}
         ).scalar()
@@ -247,7 +339,6 @@ def add_to_cart():
             VALUES (cart_seq.NEXTVAL, :user_id, :product_id, SYSDATE)
         """), {"user_id": user_id, "product_id": product_id})
 
-        # Notify seller
         buyer = db.session.execute(
             db.text("SELECT name FROM USERS WHERE id = :id"), {"id": user_id}
         ).scalar()
@@ -305,16 +396,16 @@ def checkout():
 @app.route("/api/messages", methods=["POST"])
 def send_message():
     data = request.get_json()
-    sender_id = data.get("sender_id")
-    receiver_id = data.get("receiver_id")
-    message_text = data.get("message_text")
+    sender_id    = data.get("sender_id")
+    receiver_id  = data.get("receiver_id")
+    # ✅ support both 'content' (from MessagesPage) and 'message_text' (legacy)
+    message_text = data.get("content") or data.get("message_text")
     try:
         db.session.execute(db.text("""
-            INSERT INTO MESSAGES (id, sender_id, receiver_id, message_text, sent_at)
-            VALUES (messages_seq.NEXTVAL, :sender, :receiver, :message, SYSDATE)
+            INSERT INTO MESSAGES (id, sender_id, receiver_id, message_text, sent_at, is_read)
+            VALUES (messages_seq.NEXTVAL, :sender, :receiver, :message, SYSDATE, 0)
         """), {"sender": sender_id, "receiver": receiver_id, "message": message_text})
 
-        # Notify receiver
         sender_name = db.session.execute(
             db.text("SELECT name FROM USERS WHERE id = :id"), {"id": sender_id}
         ).scalar()
@@ -336,7 +427,7 @@ def send_message():
 
 @app.route("/api/messages", methods=["GET"])
 def get_messages():
-    sender = request.args.get("sender_id")
+    sender   = request.args.get("sender_id")
     receiver = request.args.get("receiver_id")
     try:
         result = db.session.execute(db.text("""
@@ -349,8 +440,10 @@ def get_messages():
         messages = []
         for row in result:
             messages.append({
-                "sender_id": row[0], "receiver_id": row[1],
-                "message_text": row[2], "sent_at": str(row[3])
+                "sender_id":    row[0],
+                "receiver_id":  row[1],
+                "content":      row[2],   # ✅ renamed to 'content' to match MessagesPage
+                "created_at":   str(row[3])
             })
         return jsonify(messages)
     except Exception as e:
@@ -387,11 +480,11 @@ def get_threads():
             """), {"uid": user_id, "pid": partner_id}).scalar()
 
             threads.append({
-                "seller_id": partner_id,
-                "seller_name": row[1],
+                "seller_id":    partner_id,
+                "seller_name":  row[1],
                 "last_message": last[0] if last else "",
-                "last_time": str(last[1]) if last else "",
-                "unread": unread > 0
+                "last_time":    str(last[1]) if last else "",
+                "unread":       unread > 0
             })
         return jsonify(threads)
     except Exception as e:

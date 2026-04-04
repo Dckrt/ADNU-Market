@@ -22,11 +22,13 @@
         <button @click="handleAddToCart" class="cart-btn" title="Add to Cart" :disabled="product.status !== 'Available'">
           <i class="fa-solid fa-cart-shopping"></i>
         </button>
+        <!-- ✅ Buy Now → ProductDetails (full page with cart + chat) -->
         <button @click="router.push('/products/' + product.id)" class="buy-btn" :disabled="product.status !== 'Available'">
           Buy Now
         </button>
       </div>
 
+      <!-- ✅ View Details → ProductView (read-only view page) -->
       <button @click="router.push('/product-view/' + product.id)" class="details-link">
         View Details
       </button>
