@@ -1,106 +1,167 @@
 <template>
   <div class="auth-wrapper">
-    <div class="auth-card shadow">
-      <!-- Header Section -->
-      <div class="auth-header">
-        <div class="logo">
-        <span class="icon">🛍️</span>
-        ADNU <span>Market</span>
-       </div>
-        <h2>{{ isLogin ? 'Welcome Back' : 'Create Account' }}</h2>
-        <p class="subtitle">Ateneo de Naga University Marketplace</p>
+
+    <!-- Left Panel -->
+    <div class="left-panel">
+      <div class="left-content">
+        <div class="brand">
+          <span class="brand-icon">🛍️</span>
+          <span class="brand-name">ADNU <strong>Market</strong></span>
+        </div>
+        <h1 class="tagline">Buy & sell within<br/>the Blue Eagle community.</h1>
+        <p class="sub-tagline">The official peer-to-peer marketplace for Ateneo de Naga University students.</p>
+        <div class="trust-badges">
+          <div class="badge"><span>✓</span> ADNU Students Only</div>
+          <div class="badge"><span>✓</span> Safe Campus Meetups</div>
+          <div class="badge"><span>✓</span> Verified Sellers</div>
+        </div>
       </div>
-
-      <!-- Form Section -->
-      <form @submit.prevent="handleSubmit" class="auth-form">
-        <div class="input-group">
-          <label>University Email</label>
-          <input v-model="form.email" type="email" placeholder="username@gbox.adnu.edu.ph" required />
-        </div>
-
-        <!-- 1. Main Password Field with Eye -->
-        <div class="input-group">
-          <label>Password</label>
-          <div class="password-wrapper">
-            <input 
-              v-model="form.password" 
-              :type="showPassword ? 'text' : 'password'" 
-              placeholder="••••••••" 
-              required 
-            />
-            <button type="button" class="eye-btn" @click="showPassword = !showPassword">
-              <!-- Open Eye SVG -->
-              <svg v-if="showPassword" xmlns="http://www.w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              <!-- Closed Eye SVG -->
-              <svg v-else xmlns="http://www.w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- 2. Confirm Password Field with Eye (Only for Registration) -->
-        <div v-if="!isLogin" class="input-group">
-          <label>Confirm Password</label>
-          <div class="password-wrapper">
-            <input 
-              v-model="form.confirmPassword" 
-              :type="showConfirmPassword ? 'text' : 'password'" 
-              placeholder="••••••••" 
-              required 
-            />
-            <button type="button" class="eye-btn" @click="showConfirmPassword = !showConfirmPassword">
-              <svg v-if="showConfirmPassword" xmlns="http://www.w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              <svg v-else xmlns="http://www.w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Remaining Student Details (Registration Only) -->
-        <div v-if="!isLogin" class="registration-extra">
-          <div class="input-group">
-            <label>Full Name</label>
-            <input v-model="form.name" type="text" placeholder="Juan Dela Cruz" required />
-          </div>
-          <div class="input-group">
-            <label>Student ID Number</label>
-            <input v-model="form.student_id_number" type="text" placeholder="2024-00000" required />
-          </div>
-          <div class="input-group">
-            <label>Year Level</label>
-            <select v-model="form.year_level" required>
-              <option value="" disabled>Select Year</option>
-              <option value="1st Year">1st Year</option>
-              <option value="2nd Year">2nd Year</option>
-              <option value="3rd Year">3rd Year</option>
-              <option value="4th Year">4th Year</option>
-            </select>
-          </div>
-          <div class="input-group">
-            <label>Department / College</label>
-            <select v-model="form.department" @change="form.course = ''" required>
-              <option value="" disabled>Select College</option>
-              <option v-for="(courses, dept) in departmentMap" :key="dept" :value="dept">{{ dept }}</option>
-            </select>
-          </div>
-          <div class="input-group" v-if="form.department">
-            <label>Course</label>
-            <select v-model="form.course" required>
-              <option value="" disabled>Select program</option>
-              <option v-for="course in filteredCourses" :key="course" :value="course">{{ course }}</option>
-            </select>
-          </div>
-        </div>
-
-        <button type="submit" class="submit-btn" :disabled="loading">
-          {{ loading ? 'Processing...' : (isLogin ? 'Login' : 'Join White Market') }}
-        </button>
-      </form>
-
-      <div class="auth-footer">
-        <p @click="isLogin = !isLogin" class="toggle-link">
-          {{ isLogin ? "Don't have an account? Register" : "Already a member? Login" }}
-        </p>
+      <div class="left-deco">
+        <div class="deco-circle c1"></div>
+        <div class="deco-circle c2"></div>
+        <div class="deco-circle c3"></div>
       </div>
     </div>
+
+    <!-- Right Panel (Form) -->
+    <div class="right-panel">
+      <div class="form-card">
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab" :class="{ active: isLogin }" @click="isLogin = true">Login</button>
+          <button class="tab" :class="{ active: !isLogin }" @click="isLogin = false">Register</button>
+          <div class="tab-indicator" :class="{ right: !isLogin }"></div>
+        </div>
+
+        <form @submit.prevent="handleSubmit" class="auth-form">
+
+          <!-- Email -->
+          <div class="field">
+            <label>University Email</label>
+            <div class="input-wrap">
+              <i class="fa-solid fa-envelope field-icon"></i>
+              <input v-model="form.email" type="email" placeholder="username@gbox.adnu.edu.ph" required />
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="field">
+            <label>Password</label>
+            <div class="input-wrap">
+              <i class="fa-solid fa-lock field-icon"></i>
+              <input
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="••••••••"
+                required
+              />
+              <button type="button" class="eye-btn" @click="showPassword = !showPassword">
+                <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Registration Fields -->
+          <transition name="slide">
+            <div v-if="!isLogin" class="reg-fields">
+
+              <!-- Confirm Password -->
+              <div class="field">
+                <label>Confirm Password</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-lock field-icon"></i>
+                  <input
+                    v-model="form.confirmPassword"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button type="button" class="eye-btn" @click="showConfirmPassword = !showConfirmPassword">
+                    <i :class="showConfirmPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Full Name -->
+              <div class="field">
+                <label>Full Name</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-user field-icon"></i>
+                  <input v-model="form.name" type="text" placeholder="Juan Dela Cruz" required />
+                </div>
+              </div>
+
+              <!-- Student ID -->
+              <div class="field">
+                <label>Student ID Number</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-id-card field-icon"></i>
+                  <input v-model="form.student_id_number" type="text" placeholder="2024-00000" required />
+                </div>
+              </div>
+
+              <!-- Year Level -->
+              <div class="field">
+                <label>Year Level</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-graduation-cap field-icon"></i>
+                  <select v-model="form.year_level" required>
+                    <option value="" disabled>Select Year</option>
+                    <option value="1st Year">1st Year</option>
+                    <option value="2nd Year">2nd Year</option>
+                    <option value="3rd Year">3rd Year</option>
+                    <option value="4th Year">4th Year</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Department -->
+              <div class="field">
+                <label>Department / College</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-building-columns field-icon"></i>
+                  <select v-model="form.department" @change="form.course = ''" required>
+                    <option value="" disabled>Select College</option>
+                    <option v-for="(courses, dept) in departmentMap" :key="dept" :value="dept">{{ dept }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Course -->
+              <div class="field" v-if="form.department">
+                <label>Course / Program</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-book field-icon"></i>
+                  <select v-model="form.course" required>
+                    <option value="" disabled>Select program</option>
+                    <option v-for="course in filteredCourses" :key="course" :value="course">{{ course }}</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          </transition>
+
+          <!-- Submit -->
+          <button type="submit" class="submit-btn" :disabled="loading">
+            <span v-if="loading" class="spinner"></span>
+            <span v-else>
+              {{ isLogin ? 'Login to Market' : 'Create Account' }}
+              <i class="fa-solid fa-arrow-right"></i>
+            </span>
+          </button>
+
+        </form>
+
+        <p class="toggle-text">
+          {{ isLogin ? "Don't have an account?" : "Already a member?" }}
+          <span @click="isLogin = !isLogin">{{ isLogin ? 'Register' : 'Login' }}</span>
+        </p>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -115,11 +176,10 @@ const auth = useAuthStore()
 
 const isLogin = ref(true)
 const loading = ref(false)
-
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
-const form = ref({ 
+const form = ref({
   name: '',
   email: '',
   password: '',
@@ -127,112 +187,70 @@ const form = ref({
   student_id_number: '',
   department: '',
   course: '',
-  year_level: '1st Year'
+  year_level: ''
 })
 
 const departmentMap = {
   "COLLEGE OF BUSINESS AND ACCOUNTANCY": [
-    "BS Accountancy",
-    "BS BA Accounting Information Management",
+    "BS Accountancy", "BS BA Accounting Information Management",
     "BS BA Financial Management and Accounting",
     "BS Entrepreneurship with specialized track on Tourism",
-    "BS Tourism Management",
-    "BS BA Banking and Finance",
-    "BS BA Business Economics – On Hold",
-    "BS BA Business Engineering – On Hold",
-    "BS BA Business Management Honors Program",
-    "BS BA Hospital and Health Care Management – On Hold",
-    "BS BA Legal Management",
-    "BS BA Management",
-    "BS BA Marketing Management"
+    "BS Tourism Management", "BS BA Banking and Finance",
+    "BS BA Business Management Honors Program", "BS BA Legal Management",
+    "BS BA Management", "BS BA Marketing Management"
   ],
   "COLLEGE OF COMPUTER STUDIES": [
-    "Bachelor of Library and Information Science",
-    "BS Computer Science",
-    "BS Digital Illustration and Animation",
-    "BS Information Systems",
+    "Bachelor of Library and Information Science", "BS Computer Science",
+    "BS Digital Illustration and Animation", "BS Information Systems",
     "BS Information Technology"
   ],
   "COLLEGE OF EDUCATION": [
-    "Bachelor of Early Childhood Education",
-    "Bachelor of Elementary Education",
+    "Bachelor of Early Childhood Education", "Bachelor of Elementary Education",
     "Bachelor of Physical Education",
     "Bachelor of Secondary Education major in English",
     "Bachelor of Secondary Education major in Filipino",
     "Bachelor of Secondary Education major in Mathematics",
     "Bachelor of Secondary Education major in Science",
     "Bachelor of Secondary Education major in Social Studies",
-    "Bachelor of Special Needs Education with specialization in Early Childhood Education",
-    "Bachelor of Special Needs Education with specialization in Elementary School Teaching",
-    "Bachelor of Special Needs Education – Generalist",
-    "Bachelor of Special Needs Education with specialization in Teaching Deaf and Hard-of-Hearing Learners",
-    "Bachelor of Special Needs Education with specialization in Teaching Learners with Visual Impairment"
+    "Bachelor of Special Needs Education – Generalist"
   ],
   "COLLEGE OF HUMANITIES AND SOCIAL SCIENCES": [
-    "AB Broadcasting – ON HOLD",
-    "AB Communication",
-    "AB Economics",
-    "AB English Language Studies",
-    "AB Journalism – ON HOLD",
-    "AB Literature",
-    "AB Philosophy Track 1: Teaching – On Hold",
-    "AB Philosophy Track 2: Pre-Law",
+    "AB Communication", "AB Economics", "AB English Language Studies",
+    "AB Literature", "AB Philosophy Track 2: Pre-Law",
     "AB Philosophy Track 3: Foreign Service/International Relations",
-    "AB Political Science",
-    "AB Religious and Values Education",
-    "BS Development Communication",
-    "BS Psychology"
+    "AB Political Science", "AB Religious and Values Education",
+    "BS Development Communication", "BS Psychology"
   ],
   "COLLEGE OF SCIENCE AND ENGINEERING": [
-    "Bachelor of Engineering Technology major in Computer Engineering Technology",
-    "BS Biology",
-    "BS Civil Engineering",
-    "BS Architecture",
-    "BS Computer Engineering",
-    "BS Electronics Engineering",
-    "BS Environmental Management",
-    "BS Mathematics"
+    "BS Biology", "BS Civil Engineering", "BS Architecture",
+    "BS Computer Engineering", "BS Electronics Engineering",
+    "BS Environmental Management", "BS Mathematics",
+    "Bachelor of Engineering Technology major in Computer Engineering Technology"
   ],
-  "COLLEGE OF NURSING": [
-    "BS Nursing"
-  ]
+  "COLLEGE OF NURSING": ["BS Nursing"]
 }
 
-const filteredCourses = computed(() => 
+const filteredCourses = computed(() =>
   form.value.department ? departmentMap[form.value.department] : []
 )
 
-
 const handleSubmit = async () => {
-
-  // ✅ EMAIL VALIDATION
   if (!form.value.email.endsWith('@gbox.adnu.edu.ph')) {
-    alert("Use your official ADNU GBOX email only")
+    alert('Use your official ADNU GBOX email only')
     return
   }
 
-  // 🔥 REGISTER VALIDATION (IMPORTANT FIX)
   if (!isLogin.value) {
-    if (
-      !form.value.name ||
-      !form.value.email ||
-      !form.value.password ||
-      !form.value.student_id_number ||
-      !form.value.department ||
-      !form.value.course ||
-      !form.value.year_level
-    ) {
-      alert("Please fill all fields ❌")
+    if (!form.value.name || !form.value.student_id_number || !form.value.department || !form.value.course || !form.value.year_level) {
+      alert('Please fill all fields ❌')
       return
     }
-
     if (!form.value.student_id_number.includes('-')) {
       alert("Student ID must contain '-' (example: 2024-12345)")
       return
     }
-
     if (form.value.password !== form.value.confirmPassword) {
-      alert("Passwords do not match")
+      alert('Passwords do not match ❌')
       return
     }
   }
@@ -241,23 +259,13 @@ const handleSubmit = async () => {
     loading.value = true
 
     if (isLogin.value) {
-      // 🔥 LOGIN
-      const res = await api.login({
-        email: form.value.email,
-        password: form.value.password
-      })
-
-      console.log("LOGIN RESPONSE:", res.data)
-
+      const res = await api.login({ email: form.value.email, password: form.value.password })
       auth.user = res.data
       localStorage.setItem('user', JSON.stringify(res.data))
-
-      alert("Login successful! ✅")
+      alert('Login successful! ✅')
       router.push('/')
-
     } else {
-      // 🔥 REGISTER
-      const res = await api.register({
+      await api.register({
         name: form.value.name,
         email: form.value.email,
         password: form.value.password,
@@ -266,47 +274,336 @@ const handleSubmit = async () => {
         year_level: form.value.year_level,
         department: form.value.department
       })
-
-      console.log("REGISTER RESPONSE:", res.data)
-
-      alert("Registered successfully! 🎉 Please login.")
+      alert('Registered successfully! 🎉 Please login.')
       isLogin.value = true
     }
-
   } catch (err) {
-    console.error("AUTH ERROR:", err)
-
     if (err.response) {
-      alert(err.response.data.message || "Authentication failed ❌")
+      alert(err.response.data.message || 'Authentication failed ❌')
     } else {
-      alert("Server not reachable ❌")
+      alert('Server not reachable ❌')
     }
-
   } finally {
-    // 🔥 VERY IMPORTANT FIX
     loading.value = false
   }
 }
 </script>
 
 <style scoped>
-.auth-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; background-color: #003366; padding: 20px; }
-.auth-card { background: white; width: 100%; max-width: 480px; padding: 2rem; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
-.auth-header { text-align: center; margin-bottom: 1.5rem; }
-.logo { font-size: 1.5rem; font-weight: 800; color: #003366; margin-bottom: 0.5rem; }
-.logo span { color: #FFD700; }
-.auth-form { display: flex; flex-direction: column; gap: 1rem; }
-.input-group { display: flex; flex-direction: column; gap: 4px; text-align: left;}
-.input-group label { font-size: 0.8rem; font-weight: 700; color: #003366; }
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-/* 4. Password Eye Layout Fixes */
-.password-wrapper { position: relative; display: flex; align-items: center; }
-.eye-btn { position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #666; display: flex; align-items: center; }
+* { box-sizing: border-box; }
+
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: #f8fafc;
+}
+
+/* ── LEFT PANEL ── */
+.left-panel {
+  width: 45%;
+  background: #003366;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.left-content { position: relative; z-index: 2; }
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2.5rem;
+}
+
+.brand-icon { font-size: 1.8rem; }
+
+.brand-name {
+  font-size: 1.2rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.brand-name strong { color: #FFD700; font-weight: 800; }
+
+.tagline {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1.2;
+  margin: 0 0 1.25rem;
+}
+
+.sub-tagline {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.7;
+  margin: 0 0 2.5rem;
+  max-width: 340px;
+}
+
+.trust-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.85);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge span {
+  width: 20px;
+  height: 20px;
+  background: #FFD700;
+  color: #003366;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+/* Decorative circles */
+.left-deco { position: absolute; inset: 0; z-index: 1; }
+
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.c1 { width: 400px; height: 400px; bottom: -120px; right: -120px; }
+.c2 { width: 260px; height: 260px; bottom: -60px; right: -60px; background: rgba(255,215,0,0.06); }
+.c3 { width: 140px; height: 140px; top: 40px; right: 40px; border-color: rgba(255,215,0,0.15); }
+
+/* ── RIGHT PANEL ── */
+.right-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 440px;
+  background: white;
+  border-radius: 20px;
+  padding: 2rem 2.25rem;
+  border: 0.5px solid #e5e7eb;
+}
+
+/* ── TABS ── */
+.tabs {
+  display: flex;
+  position: relative;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 1.75rem;
+  gap: 0;
+}
+
+.tab {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  background: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 0.2s;
+  position: relative;
+  z-index: 1;
+}
+
+.tab.active { color: #003366; }
+
+.tab-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: calc(100% - 8px);
+  background: white;
+  border-radius: 7px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-indicator.right { transform: translateX(100%); }
+
+/* ── FORM ── */
+.auth-form { display: flex; flex-direction: column; gap: 1rem; }
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+
+.field label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-icon {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.input-wrap input,
+.input-wrap select {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #111;
+  background: #fafafa;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  appearance: none;
+}
+
+.input-wrap input:focus,
+.input-wrap select:focus {
+  border-color: #003366;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(0,51,102,0.08);
+}
+
+.eye-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
 .eye-btn:hover { color: #003366; }
 
-input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; width: 100%; box-sizing: border-box; }
-.submit-btn { background-color: #FFD700; color: #003366; padding: 12px; border: none; border-radius: 8px; font-weight: 800; font-size: 1rem; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-.submit-btn:hover:not(:disabled) { background-color: #e6c200; transform: translateY(-2px); }
-.auth-footer { margin-top: 1.2rem; text-align: center; font-size: 0.85rem; color: #666; }
-.toggle-link { color: #003366; font-weight: bold; cursor: pointer; text-decoration: underline; }
+/* Slide transition for registration fields */
+.reg-fields { display: flex; flex-direction: column; gap: 1rem; }
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.slide-enter-to,
+.slide-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+}
+
+/* ── SUBMIT ── */
+.submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px;
+  background: #003366;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  margin-top: 0.5rem;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #002244;
+  transform: translateY(-1px);
+}
+
+.submit-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.submit-btn i { font-size: 0.85rem; }
+
+/* Spinner */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TOGGLE TEXT ── */
+.toggle-text {
+  margin-top: 1.25rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.toggle-text span {
+  color: #003366;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.toggle-text span:hover { text-decoration: underline; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .auth-wrapper { flex-direction: column; }
+  .left-panel { width: 100%; padding: 2rem 1.5rem; min-height: auto; }
+  .tagline { font-size: 1.6rem; }
+  .trust-badges { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .right-panel { padding: 1.5rem 1rem; }
+  .form-card { padding: 1.5rem; }
+}
 </style>
