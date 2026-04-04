@@ -10,8 +10,9 @@
         <div class="image-upload-box" @click="triggerFileInput">
           <img v-if="imagePreview" :src="imagePreview" class="preview-img" />
           <div v-else class="upload-placeholder">
-            <span class="upload-icon">📷</span>
+            <i class="fa-solid fa-camera upload-icon"></i>
             <span>Click to upload image</span>
+            <span class="upload-hint">JPG, PNG — optional</span>
           </div>
         </div>
         <input
@@ -35,7 +36,7 @@
         <input v-model="price" type="text" placeholder="e.g. 250" inputmode="numeric" />
       </div>
 
-      <!-- Category Dropdown -->
+      <!-- Category -->
       <div class="input-group">
         <label>Category <span class="required">*</span></label>
         <select v-model="category">
@@ -51,16 +52,16 @@
         </select>
       </div>
 
-      <!-- Pickup Location -->
-      <div class="input-group">
-        <label>Pickup Location</label>
-        <input v-model="pickup_location" type="text" placeholder="e.g. Library, Canteen, Gate 1" />
-      </div>
-
       <!-- Description -->
       <div class="input-group">
         <label>Description</label>
-        <textarea v-model="description" placeholder="Describe your item (condition, details, etc.)" rows="4"></textarea>
+        <textarea v-model="description" placeholder="Describe your item — condition, details, etc." rows="4"></textarea>
+      </div>
+
+      <!-- Meetup note -->
+      <div class="meetup-note">
+        <i class="fa-solid fa-comments"></i>
+        Buyers will contact you via chat to arrange meetup details.
       </div>
 
       <!-- Buttons -->
@@ -85,15 +86,12 @@ const title = ref('')
 const price = ref('')
 const category = ref('')
 const description = ref('')
-const pickup_location = ref('')
 const loading = ref(false)
 const imagePreview = ref(null)
 const imageFile = ref(null)
 const fileInput = ref(null)
 
-const triggerFileInput = () => {
-  fileInput.value.click()
-}
+const triggerFileInput = () => fileInput.value?.click()
 
 const handleImageChange = (e) => {
   const file = e.target.files[0]
@@ -107,18 +105,15 @@ const submit = async () => {
     alert('Please fill all required fields ❌')
     return
   }
-
   if (isNaN(price.value) || Number(price.value) <= 0) {
     alert('Please enter a valid price ❌')
     return
   }
-
   const user = JSON.parse(localStorage.getItem('user'))
   if (!user) {
     alert('Please login first')
     return router.push('/auth')
   }
-
   try {
     loading.value = true
     await api.createProduct({
@@ -126,7 +121,6 @@ const submit = async () => {
       description: description.value,
       price: Number(price.value),
       category: category.value,
-      pickup_location: pickup_location.value,
       user_id: user.user_id
     })
     alert('Product posted successfully! 🎉')
@@ -170,26 +164,10 @@ h2 {
   padding-left: 10px;
 }
 
-.subtitle {
-  color: #888;
-  font-size: 0.875rem;
-  margin: 0;
-}
+.subtitle { color: #888; font-size: 0.875rem; margin: 0; }
 
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.input-group label {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #003366;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-group label { font-size: 0.82rem; font-weight: 700; color: #003366; text-transform: uppercase; letter-spacing: 0.5px; }
 .required { color: #e74c3c; }
 
 input, select, textarea {
@@ -202,18 +180,14 @@ input, select, textarea {
   transition: border 0.2s;
 }
 
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: #003366;
-}
-
+input:focus, select:focus, textarea:focus { outline: none; border-color: #003366; }
 textarea { resize: vertical; }
 
 /* Image Upload */
 .image-upload-box {
   border: 2px dashed #ddd;
   border-radius: 10px;
-  height: 180px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,32 +195,38 @@ textarea { resize: vertical; }
   overflow: hidden;
   transition: border-color 0.2s;
 }
-
 .image-upload-box:hover { border-color: #003366; }
 
 .upload-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: #aaa;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
-.upload-icon { font-size: 2rem; }
+.upload-icon { font-size: 1.8rem; color: #003366; }
+.upload-hint { font-size: 0.75rem; color: #ccc; }
 
-.preview-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.preview-img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Meetup note */
+.meetup-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0f4ff;
+  color: #003366;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 3px solid #003366;
 }
 
 /* Buttons */
-.btn-group {
-  display: flex;
-  gap: 10px;
-  margin-top: 0.5rem;
-}
+.btn-group { display: flex; gap: 10px; margin-top: 0.5rem; }
 
 .submit-btn {
   flex: 1;
@@ -260,16 +240,8 @@ textarea { resize: vertical; }
   cursor: pointer;
   transition: 0.3s;
 }
-
-.submit-btn:hover:not(:disabled) {
-  background-color: #e6c200;
-  transform: translateY(-2px);
-}
-
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.submit-btn:hover:not(:disabled) { background-color: #e6c200; transform: translateY(-2px); }
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .cancel-btn {
   flex: 1;
@@ -282,6 +254,5 @@ textarea { resize: vertical; }
   cursor: pointer;
   transition: 0.3s;
 }
-
 .cancel-btn:hover { background-color: #f0f0f0; }
 </style>

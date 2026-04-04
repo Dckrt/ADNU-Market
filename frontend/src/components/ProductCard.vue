@@ -88,9 +88,8 @@ const handleAddToCart = async () => {
   }
 }
 
-const handleBuyNow = async () => {
-  await handleAddToCart()
-  router.push('/cart')
+const handleBuyNow = () => {
+  router.push('/products/' + props.product.id)
 }
 </script>
 
