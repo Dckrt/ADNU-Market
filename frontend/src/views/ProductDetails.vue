@@ -164,6 +164,18 @@ const handleChatSeller = () => {
     }
   })
 }
+
+const messageSeller = () => {
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (!user) return router.push('/auth')
+  router.push({
+    path: '/chat',
+    query: {
+      seller_id: product.value.seller_id,
+      seller_name: product.value.seller_name
+    }
+  })
+}
 </script>
 
 <style scoped>
