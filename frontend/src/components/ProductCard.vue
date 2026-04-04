@@ -1,16 +1,15 @@
 <template>
-  <div class="card">
-    
+  <div class="card" @click="goToDetails">
     <!-- Category & Status -->
     <div class="category-header">
       <span class="category-tag">{{ product.category }}</span>
-      <StatusBadge :status="product.status" />
+      <span class="status-tag">● Available</span>
     </div>
 
     <!-- Product Image -->
     <div class="image-container">
-      <img 
-        :src="getImage(product.image_url)" 
+      <img
+        :src="getImage(product.image_url)"
         :alt="product.title"
         class="product-image"
       />
@@ -19,138 +18,145 @@
     <!-- Content -->
     <div class="card-body">
       <h3 class="product-title">{{ product.title }}</h3>
-      <p class="product-desc">{{ product.description }}</p>
+      <p class="product-desc">{{ product.description || 'No description' }}</p>
       <p class="price">₱{{ formatPrice(product.price) }}</p>
-      
+
       <!-- Buttons -->
-      <div class="button-group">
-        <button 
-          @click="handleAddToCart" 
+      <div class="button-group" @click.stop>
+        <button
+          @click="handleAddToCart"
           class="cart-btn"
+          title="Add to Cart"
           :disabled="product.status !== 'Available'"
         >
           <i class="fa-solid fa-cart-shopping"></i>
         </button>
-
-        <button 
-          @click="handleBuyNow" 
+        <button
+          @click="goToDetails"
           class="buy-btn"
           :disabled="product.status !== 'Available'"
         >
-          Buy Now
+          <i class="fa-solid fa-eye"></i> View Item
         </button>
       </div>
-
-      <router-link :to="'/products/' + product.id" class="details-link">
-        View Details
-      </router-link>
     </div>
   </div>
 </template>
 
 <script setup>
-import StatusBadge from './StatusBadge.vue'
 import api from '@/services/api'
 import { useRouter } from 'vue-router'
 
 const props = defineProps(['product'])
 const router = useRouter()
 
-const formatPrice = (value) => {
-  return parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2 })
+const goToDetails = () => {
+  router.push('/products/' + props.product.id)
 }
 
-// 🔥 IMAGE HANDLER (PNG support)
+const formatPrice = (value) =>
+  parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2 })
+
 const getImage = (url) => {
   if (!url) return '/placeholder-image.png'
-
-  // if local image (like /images/item.png)
-  if (url.startsWith('/')) return url
-
-  // if base64 or external
   return url
 }
 
-// 🔥 ADD TO CART FIX
 const handleAddToCart = async () => {
   const user = JSON.parse(localStorage.getItem('user'))
   if (!user) return router.push('/auth')
-
   try {
-    await api.addToCart({
-      user_id: user.user_id,
-      product_id: props.product.id
-    })
-
-    alert(`${props.product.title} added to cart!`)
+    await api.addToCart({ user_id: user.user_id, product_id: props.product.id })
+    alert(`"${props.product.title}" added to cart! ✅`)
   } catch (err) {
-    alert("Failed to add to cart")
+    const msg = err.response?.data?.message || 'Failed to add to cart'
+    alert(msg + ' ❌')
   }
-}
-
-const handleBuyNow = () => {
-  router.push('/products/' + props.product.id)
 }
 </script>
 
 <style scoped>
 .card {
   background: white;
-  border-radius: 12px;
-  padding: 1rem;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 0.5px solid #eee;
+  cursor: pointer;
   transition: 0.2s;
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,51,102,0.1);
 }
 
-/* HEADER */
 .category-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: center;
+  padding: 10px 12px 6px;
 }
 
 .category-tag {
-  font-size: 0.65rem;
-  font-weight: bold;
+  font-size: 0.68rem;
+  font-weight: 700;
   background: #f0f4f8;
-  padding: 4px 8px;
+  color: #555;
+  padding: 3px 8px;
   border-radius: 4px;
 }
 
-/* IMAGE */
+.status-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #16a34a;
+}
+
 .image-container {
-  height: 160px;
+  height: 170px;
   overflow: hidden;
-  border-radius: 8px;
+  background: #f8fafc;
 }
 
 .product-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s;
 }
 
-/* TEXT */
+.card:hover .product-image { transform: scale(1.04); }
+
+.card-body {
+  padding: 12px;
+}
+
 .product-title {
-  font-size: 1rem;
-  font-weight: bold;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #003366;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .product-desc {
-  font-size: 0.85rem;
-  color: #666;
-  margin-bottom: 10px;
+  font-size: 0.8rem;
+  color: #888;
+  margin: 0 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .price {
-  color: #ee4d2d;
-  font-weight: bold;
+  color: #e74c3c;
+  font-weight: 800;
+  font-size: 1rem;
+  margin: 0 0 10px;
 }
 
-/* BUTTONS */
 .button-group {
   display: flex;
   gap: 8px;
@@ -159,32 +165,45 @@ const handleBuyNow = () => {
 .cart-btn {
   width: 40px;
   height: 40px;
-  border-radius: 6px;
-  border: none;
-  background: #f1f5f9;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #003366;
+  font-size: 15px;
+  transition: 0.2s;
+  flex-shrink: 0;
 }
 
-.cart-btn i {
-  font-size: 16px;
+.cart-btn:hover:not(:disabled) {
+  background: #003366;
+  color: white;
+  border-color: #003366;
 }
+
+.cart-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .buy-btn {
   flex: 1;
   background: #003366;
   color: white;
-  border-radius: 6px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: 0.2s;
+  padding: 0 12px;
+  height: 40px;
 }
 
-.buy-btn:hover {
-  background: #002244;
-}
-
-/* LINK */
-.details-link {
-  font-size: 0.8rem;
-  text-align: center;
-  display: block;
-  margin-top: 8px;
-}
+.buy-btn:hover:not(:disabled) { background: #002244; }
+.buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

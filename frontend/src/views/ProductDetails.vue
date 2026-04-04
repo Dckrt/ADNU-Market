@@ -2,15 +2,19 @@
   <div v-if="product" class="details-wrapper">
     <div class="container">
 
-      <!-- Back -->
-      <button @click="$router.push('/products')" class="back-link">
-        <i class="fa-solid fa-arrow-left"></i> Back to Market
-      </button>
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <button @click="$router.push('/')" class="crumb">Home</button>
+        <span class="crumb-sep">/</span>
+        <button @click="$router.push('/products')" class="crumb">Market</button>
+        <span class="crumb-sep">/</span>
+        <span class="crumb active">{{ product.title }}</span>
+      </div>
 
       <div class="details-grid">
 
-        <!-- LEFT: Product Info -->
-        <div class="product-main">
+        <!-- LEFT -->
+        <div class="left-col">
 
           <!-- Image -->
           <div class="image-box">
@@ -18,68 +22,87 @@
             <span class="cat-badge">{{ product.category }}</span>
           </div>
 
-          <!-- Info -->
-          <div class="product-info">
-            <div class="status-row">
-              <span class="status-dot">● Available</span>
-              <span class="posted-date">Posted {{ formatDate(product.created_at) }}</span>
-            </div>
-
-            <h1 class="product-title">{{ product.title }}</h1>
-            <p class="product-price">₱{{ formatPrice(product.price) }}</p>
-
-            <div class="divider"></div>
-
-            <h3 class="section-label">Description</h3>
+          <!-- Description Card -->
+          <div class="desc-card">
+            <h3 class="section-label">
+              <i class="fa-solid fa-align-left"></i> Product Description
+            </h3>
             <p class="product-desc">{{ product.description || 'No description provided.' }}</p>
+
+            <div class="meta-row">
+              <div class="meta-item">
+                <i class="fa-solid fa-tag"></i>
+                <span>{{ product.category }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fa-solid fa-calendar-days"></i>
+                <span>Posted {{ formatDate(product.created_at) }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fa-solid fa-circle-check" style="color:#16a34a"></i>
+                <span style="color:#16a34a">Available</span>
+              </div>
+            </div>
           </div>
+
         </div>
 
-        <!-- RIGHT: Seller + Actions -->
-        <div class="sidebar">
+        <!-- RIGHT -->
+        <div class="right-col">
+
+          <!-- Product Header -->
+          <div class="product-header-card">
+            <h1 class="product-title">{{ product.title }}</h1>
+            <p class="product-price">₱{{ formatPrice(product.price) }}</p>
+          </div>
 
           <!-- Seller Card -->
           <div class="seller-card">
-            <p class="card-label">Sold by</p>
+            <p class="card-label"><i class="fa-solid fa-store"></i> Sold by</p>
             <div class="seller-row">
-              <div class="seller-avatar">{{ product.seller_name?.charAt(0)?.toUpperCase() || 'S' }}</div>
+              <div class="seller-avatar">
+                {{ product.seller_name?.charAt(0)?.toUpperCase() || 'S' }}
+              </div>
               <div>
                 <p class="seller-name">{{ product.seller_name || 'ADNU Student' }}</p>
-                <p class="seller-sub">ADNU Verified Student</p>
+                <p class="seller-sub">
+                  <i class="fa-solid fa-circle-check"></i> ADNU Verified Student
+                </p>
               </div>
+              <button
+                v-if="!isOwnProduct"
+                @click="handleChat"
+                class="chat-quick-btn"
+                title="Message Seller"
+              >
+                <i class="fa-solid fa-comment-dots"></i>
+              </button>
             </div>
           </div>
 
           <!-- Action Card -->
           <div class="action-card">
-            <p class="price-display">₱{{ formatPrice(product.price) }}</p>
 
-            <button
-              @click="handleBuyNow"
-              class="btn-buy"
-              :disabled="isOwnProduct"
-            >
-              <i class="fa-solid fa-bolt"></i>
-              {{ isOwnProduct ? 'Your Listing' : 'Buy Now' }}
-            </button>
+            <div v-if="isOwnProduct" class="own-listing-banner">
+              <i class="fa-solid fa-store"></i>
+              This is your listing
+            </div>
 
-            <button
-              @click="handleAddToCart"
-              class="btn-cart"
-              :disabled="isOwnProduct || addingToCart"
-            >
-              <i class="fa-solid fa-cart-shopping"></i>
-              {{ addingToCart ? 'Adding...' : 'Add to Cart' }}
-            </button>
+            <template v-else>
+              <button @click="handleAddToCart" class="btn-cart" :disabled="addingToCart">
+                <i class="fa-solid fa-cart-shopping"></i>
+                {{ addingToCart ? 'Adding...' : 'Add to Cart' }}
+              </button>
 
-            <button @click="handleChat" class="btn-chat">
-              <i class="fa-solid fa-comment-dots"></i>
-              Chat with Seller
-            </button>
+              <button @click="handleChat" class="btn-chat">
+                <i class="fa-solid fa-comment-dots"></i>
+                Chat with Seller
+              </button>
+            </template>
 
             <p class="safety-note">
               <i class="fa-solid fa-shield-halved"></i>
-              Meet in safe campus areas only
+              Arrange meetup details through chat
             </p>
           </div>
 
@@ -90,10 +113,16 @@
 
   <!-- Loading -->
   <div v-else class="loading-wrapper">
-    <div class="loading-card">
-      <div class="skeleton img-skeleton"></div>
-      <div class="skeleton title-skeleton"></div>
-      <div class="skeleton price-skeleton"></div>
+    <div class="container">
+      <div class="loading-grid">
+        <div class="skeleton img-sk"></div>
+        <div class="loading-right">
+          <div class="skeleton title-sk"></div>
+          <div class="skeleton price-sk"></div>
+          <div class="skeleton btn-sk"></div>
+          <div class="skeleton btn-sk"></div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -130,35 +159,22 @@ watch(() => route.params.id, loadDetails)
 
 const handleAddToCart = async () => {
   if (!currentUser) return router.push('/auth')
-  if (isOwnProduct.value) return alert('You cannot add your own product to cart.')
   try {
     addingToCart.value = true
     await api.addToCart({ user_id: currentUser.user_id, product_id: product.value.id })
     alert(`"${product.value.title}" added to cart! ✅`)
   } catch (err) {
-    const msg = err.response?.data?.message || 'Failed to add to cart'
-    alert(msg + ' ❌')
+    alert((err.response?.data?.message || 'Failed to add to cart') + ' ❌')
   } finally {
     addingToCart.value = false
   }
 }
 
-const handleBuyNow = async () => {
-  if (!currentUser) return router.push('/auth')
-  if (isOwnProduct.value) return
-  await handleAddToCart()
-  router.push('/cart')
-}
-
 const handleChat = () => {
   if (!currentUser) return router.push('/auth')
-  if (isOwnProduct.value) return alert('This is your own listing.')
   router.push({
     path: '/chat',
-    query: {
-      seller_id: product.value.seller_id,
-      seller_name: product.value.seller_name
-    }
+    query: { seller_id: product.value.seller_id, seller_name: product.value.seller_name }
   })
 }
 
@@ -173,56 +189,56 @@ const formatDate = (d) =>
 .details-wrapper {
   background: #f8fafc;
   min-height: 100vh;
-  padding: 2rem 1.5rem;
+  padding: 1.5rem;
 }
 
-.container {
-  max-width: 1100px;
-  margin: 0 auto;
-}
+.container { max-width: 1100px; margin: 0 auto; }
 
-.back-link {
-  display: inline-flex;
+/* Breadcrumb */
+.breadcrumb {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 1.5rem;
+  font-size: 0.82rem;
+}
+
+.crumb {
   background: none;
   border: none;
   color: #003366;
-  font-weight: 700;
-  font-size: 0.875rem;
   cursor: pointer;
-  margin-bottom: 1.5rem;
+  font-weight: 600;
   padding: 0;
-  transition: 0.2s;
+  font-size: 0.82rem;
 }
-.back-link:hover { opacity: 0.7; }
 
+.crumb:hover { text-decoration: underline; }
+.crumb.active { color: #888; cursor: default; font-weight: 400; }
+.crumb.active:hover { text-decoration: none; }
+.crumb-sep { color: #ccc; }
+
+/* Grid */
 .details-grid {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr 360px;
   gap: 1.5rem;
   align-items: start;
 }
 
 /* LEFT */
-.product-main {
-  background: white;
-  border-radius: 16px;
-  border: 0.5px solid #eee;
-  overflow: hidden;
-}
+.left-col { display: flex; flex-direction: column; gap: 16px; }
 
 .image-box {
   position: relative;
-  height: 340px;
+  height: 380px;
   background: #f1f5f9;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 0.5px solid #eee;
 }
 
-.main-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.main-img { width: 100%; height: 100%; object-fit: cover; }
 
 .cat-badge {
   position: absolute;
@@ -237,65 +253,52 @@ const formatDate = (d) =>
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.product-info { padding: 1.5rem; }
-
-.status-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.status-dot {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #16a34a;
-}
-
-.posted-date {
-  font-size: 0.78rem;
-  color: #888;
-}
-
-.product-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #003366;
-  margin: 0 0 0.5rem;
-  line-height: 1.3;
-}
-
-.product-price {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #e74c3c;
-  margin: 0 0 1rem;
-}
-
-.divider {
-  height: 1px;
-  background: #f1f5f9;
-  margin: 1rem 0;
+.desc-card {
+  background: white;
+  border-radius: 14px;
+  border: 0.5px solid #eee;
+  padding: 1.25rem;
 }
 
 .section-label {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #003366;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .product-desc {
   color: #555;
   line-height: 1.7;
   font-size: 0.9rem;
-  margin: 0;
+  margin: 0 0 1rem;
 }
 
-/* RIGHT SIDEBAR */
-.sidebar {
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.meta-item i { color: #003366; font-size: 0.75rem; }
+
+/* RIGHT */
+.right-col {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -303,6 +306,29 @@ const formatDate = (d) =>
   top: 80px;
 }
 
+.product-header-card {
+  background: white;
+  border-radius: 14px;
+  border: 0.5px solid #eee;
+  padding: 1.25rem;
+}
+
+.product-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #003366;
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+
+.product-price {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #e74c3c;
+  margin: 0;
+}
+
+/* Seller */
 .seller-card {
   background: white;
   border-radius: 14px;
@@ -317,6 +343,9 @@ const formatDate = (d) =>
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .seller-row {
@@ -343,14 +372,35 @@ const formatDate = (d) =>
   font-size: 0.95rem;
   font-weight: 700;
   color: #003366;
-  margin: 0 0 2px;
+  margin: 0 0 3px;
 }
 
 .seller-sub {
   font-size: 0.75rem;
   color: #16a34a;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
+
+.chat-quick-btn {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f0f4ff;
+  color: #003366;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+.chat-quick-btn:hover { background: #003366; color: white; }
 
 /* Action Card */
 .action-card {
@@ -363,31 +413,18 @@ const formatDate = (d) =>
   gap: 10px;
 }
 
-.price-display {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: #e74c3c;
-  margin: 0 0 4px;
-}
-
-.btn-buy {
+.own-listing-banner {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  width: 100%;
-  background: #003366;
-  color: white;
-  border: none;
-  padding: 13px;
+  background: #f0f4ff;
+  color: #003366;
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 12px 16px;
   border-radius: 10px;
-  font-weight: 800;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: 0.2s;
+  border: 1px solid #d0ddf5;
 }
-.btn-buy:hover:not(:disabled) { background: #002244; transform: translateY(-1px); }
-.btn-buy:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-cart {
   display: flex;
@@ -414,44 +451,42 @@ const formatDate = (d) =>
   justify-content: center;
   gap: 8px;
   width: 100%;
-  background: white;
-  color: #003366;
-  border: 1.5px solid #003366;
-  padding: 12px;
+  background: #003366;
+  color: white;
+  border: none;
+  padding: 13px;
   border-radius: 10px;
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
   transition: 0.2s;
 }
-.btn-chat:hover { background: #f0f4ff; }
+.btn-chat:hover { background: #002244; transform: translateY(-1px); }
 
 .safety-note {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 0.75rem;
-  color: #888;
-  margin: 4px 0 0;
+  color: #aaa;
+  margin: 2px 0 0;
 }
-
 .safety-note i { color: #16a34a; }
 
 /* Loading */
 .loading-wrapper {
   background: #f8fafc;
   min-height: 100vh;
-  padding: 2rem;
-  display: flex;
-  justify-content: center;
+  padding: 1.5rem;
 }
 
-.loading-card {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  width: 100%;
-  max-width: 600px;
+.loading-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.5rem;
+}
+
+.loading-right {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -459,13 +494,14 @@ const formatDate = (d) =>
 
 .skeleton {
   background: #e8ecef;
-  border-radius: 6px;
+  border-radius: 10px;
   animation: pulse 1.5s infinite;
 }
 
-.img-skeleton { height: 280px; border-radius: 12px; }
-.title-skeleton { height: 24px; width: 70%; }
-.price-skeleton { height: 20px; width: 30%; }
+.img-sk { height: 380px; }
+.title-sk { height: 28px; width: 80%; }
+.price-sk { height: 32px; width: 40%; }
+.btn-sk { height: 48px; border-radius: 10px; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -473,7 +509,7 @@ const formatDate = (d) =>
 }
 
 @media (max-width: 768px) {
-  .details-grid { grid-template-columns: 1fr; }
-  .sidebar { position: static; }
+  .details-grid, .loading-grid { grid-template-columns: 1fr; }
+  .right-col { position: static; }
 }
 </style>
