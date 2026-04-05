@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
+from flask import send_from_directory
 import oracledb
 import os
 
@@ -634,6 +635,16 @@ def admin_messages():
         print("ADMIN MESSAGES ERROR:", e)
         return jsonify({"message": "Server error"}), 500
 
+# ✅ Serve admin panel
+@app.route("/admin")
+def serve_admin():
+    admin_folder = os.path.join(os.path.dirname(__file__), '..', 'admin')
+    return send_from_directory(admin_folder, 'index.html')
+
+@app.route("/admin/<path:filename>")
+def serve_admin_static(filename):
+    admin_folder = os.path.join(os.path.dirname(__file__), '..', 'admin')
+    return send_from_directory(admin_folder, filename)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
