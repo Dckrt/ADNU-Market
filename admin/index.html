@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ADNU Market — Admin</title>
+  <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="login-brand">
+        <span>🛍️</span>
+        <span>ADNU Market <strong>Admin</strong></span>
+      </div>
+      <h2>Staff Access Only</h2>
+      <p>Enter admin password to continue</p>
+      <input id="admin-password" type="password" placeholder="Admin password" />
+      <button onclick="adminLogin()">Access Dashboard</button>
+      <p id="login-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" style="display:none">
+
+    <!-- Navbar -->
+    <nav class="admin-nav">
+      <div class="nav-brand">🛍️ ADNU Market <strong>Admin</strong></div>
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showTab('overview')">
+          <i class="fa-solid fa-chart-line"></i> Overview
+        </button>
+        <button class="nav-tab" onclick="showTab('products')">
+          <i class="fa-solid fa-box"></i> Products
+        </button>
+        <button class="nav-tab" onclick="showTab('users')">
+          <i class="fa-solid fa-users"></i> Users
+        </button>
+        <button class="nav-tab" onclick="showTab('messages')">
+          <i class="fa-solid fa-message"></i> Messages
+        </button>
+      </div>
+      <button class="logout-btn" onclick="logout()">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </button>
+    </nav>
+
+    <!-- Content -->
+    <main class="admin-main">
+
+      <!-- OVERVIEW TAB -->
+      <div id="tab-overview" class="tab-content">
+        <div class="tab-header">
+          <h1>Overview</h1>
+          <button class="refresh-btn" onclick="loadOverview()">
+            <i class="fa-solid fa-rotate-right"></i> Refresh
+          </button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-body">
+              <span class="stat-label">Registered Users</span>
+              <span class="stat-num" id="stat-users">—</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon gold"><i class="fa-solid fa-box"></i></div>
+            <div class="stat-body">
+              <span class="stat-label">Total Listings</span>
+              <span class="stat-num" id="stat-products">—</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fa-solid fa-message"></i></div>
+            <div class="stat-body">
+              <span class="stat-label">Messages Sent</span>
+              <span class="stat-num" id="stat-messages">—</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red"><i class="fa-solid fa-cart-shopping"></i></div>
+            <div class="stat-body">
+              <span class="stat-label">Cart Items</span>
+              <span class="stat-num" id="stat-cart">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Recent Activity</div>
+        <div id="recent-products" class="recent-list"></div>
+      </div>
+
+      <!-- PRODUCTS TAB -->
+      <div id="tab-products" class="tab-content" style="display:none">
+        <div class="tab-header">
+          <h1>All Listings <span id="product-count" class="count-badge"></span></h1>
+          <input class="search-input" id="product-search" placeholder="Search products..." oninput="filterProducts()" />
+        </div>
+        <div class="table-wrap">
+          <table id="products-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Image</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Seller</th>
+                <th>Posted</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- USERS TAB -->
+      <div id="tab-users" class="tab-content" style="display:none">
+        <div class="tab-header">
+          <h1>All Users <span id="user-count" class="count-badge"></span></h1>
+          <input class="search-input" id="user-search" placeholder="Search users..." oninput="filterUsers()" />
+        </div>
+        <div class="table-wrap">
+          <table id="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Student ID</th>
+                <th>Course</th>
+                <th>Year</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MESSAGES TAB -->
+      <div id="tab-messages" class="tab-content" style="display:none">
+        <div class="tab-header">
+          <h1>Messages <span id="msg-count" class="count-badge"></span></h1>
+          <input class="search-input" id="msg-search" placeholder="Search messages..." oninput="filterMessages()" />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Message</th>
+                <th>Sent At</th>
+                <th>Read</th>
+              </tr>
+            </thead>
+            <tbody id="messages-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

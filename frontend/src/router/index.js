@@ -12,18 +12,22 @@ import ProductView from '@/views/ProductView.vue'
 import AdminPage from '@/views/AdminPage.vue'
 
 const routes = [
-  { path: '/auth',              name: 'Auth',           component: AuthPage },
-  { path: '/',                  name: 'Home',           component: HomeView },
-  { path: '/products',          name: 'Products',       component: Marketplace },
-  { path: '/products/:id',      name: 'ProductDetails', component: ProductDetails, props: true },
-  { path: '/product-view/:id',  name: 'ProductView',    component: ProductView },
-  { path: '/cart',              name: 'Cart',           component: CartView },
-  { path: '/profile',           name: 'Profile',        component: Profile },
-  { path: '/dashboard',         name: 'Dashboard',      component: Dashboard },
-  { path: '/add-product',       name: 'AddProduct',     component: AddProduct },
-  { path: '/chat',              name: 'Chat',           component: MessagesPage },
-  { path: '/admin',             name: 'Admin',          component: AdminPage },
-  { path: '/:pathMatch(.*)*',   redirect: '/' }
+  { path: '/auth',             name: 'Auth',           component: AuthPage },
+  { path: '/',                 name: 'Home',           component: HomeView },
+  { path: '/products',         name: 'Products',       component: Marketplace },
+  { path: '/products/:id',     name: 'ProductDetails', component: ProductDetails, props: true },
+  { path: '/product-view/:id', name: 'ProductView',    component: ProductView },
+  { path: '/cart',             name: 'Cart',           component: CartView },
+  { path: '/profile',          name: 'Profile',        component: Profile },
+  { path: '/dashboard',        name: 'Dashboard',      component: Dashboard },
+  { path: '/add-product',      name: 'AddProduct',     component: AddProduct },
+
+  // ✅ FIXED: /messages is the real route, /chat now redirects to it
+  { path: '/messages',         name: 'Messages',       component: MessagesPage },
+  { path: '/chat',             redirect: '/messages' },
+
+  { path: '/admin',            name: 'Admin',          component: AdminPage },
+  { path: '/:pathMatch(.*)*',  redirect: '/' }
 ]
 
 const router = createRouter({

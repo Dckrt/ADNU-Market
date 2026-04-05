@@ -229,7 +229,7 @@ const removeItem = async (id) => {
 const chatSeller = (item) => {
   if (!user) return router.push('/auth')
   router.push({
-    path: '/chat',
+    path: '/messages',
     query: {
       seller_id: item.seller_id,
       seller_name: item.seller_name

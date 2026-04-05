@@ -173,7 +173,7 @@ const handleAddToCart = async () => {
 const handleChat = () => {
   if (!currentUser) return router.push('/auth')
   router.push({
-    path: '/chat',
+    path: '/messages',
     query: { seller_id: product.value.seller_id, seller_name: product.value.seller_name }
   })
 }

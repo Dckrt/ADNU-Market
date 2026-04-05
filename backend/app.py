@@ -118,7 +118,7 @@ def get_products():
                        p.status, p.seller_id, p.image_url, u.name AS seller_name
                 FROM PRODUCTS p LEFT JOIN USERS u ON p.seller_id = u.id
                 WHERE p.seller_id = :seller_id ORDER BY p.id DESC
-            """), {"seller_id": seller_id})
+            """), {"seller_id": int(seller_id)})
         else:
             result = db.session.execute(db.text("""
                 SELECT p.id, p.title, p.description, p.price, p.category,
@@ -279,7 +279,7 @@ def get_cart():
             JOIN PRODUCTS p ON c.product_id = p.id
             JOIN USERS u ON p.seller_id = u.id
             WHERE c.user_id = :user_id
-        """), {"user_id": user_id})
+        """), {"user_id": int(user_id)})
         items = []
         for row in result:
             image_url = row[8]
@@ -367,10 +367,10 @@ def checkout():
 @app.route("/api/messages", methods=["POST"])
 def send_message():
     data = request.get_json()
-    sender_id   = data.get("sender_id")
-    receiver_id = data.get("receiver_id")
+    sender_id    = int(data.get("sender_id"))
+    receiver_id  = int(data.get("receiver_id"))
     message_text = data.get("message_text") or data.get("content") or data.get("message")
-    product_id  = data.get("product_id", None)
+    product_id   = data.get("product_id", None)
     try:
         db.session.execute(db.text("""
             INSERT INTO MESSAGES (id, sender_id, receiver_id, product_id, message, sent_at, is_read)
@@ -393,15 +393,17 @@ def send_message():
 
 @app.route("/api/messages", methods=["GET"])
 def get_messages():
-    sender   = request.args.get("sender_id")
-    receiver = request.args.get("receiver_id")
     try:
-        # ✅ Return message_text field so frontend works consistently
+        sender   = int(request.args.get("sender_id"))
+        receiver = int(request.args.get("receiver_id"))
+    except (TypeError, ValueError):
+        return jsonify({"message": "Invalid sender_id or receiver_id"}), 400
+    try:
         result = db.session.execute(db.text("""
             SELECT sender_id, receiver_id, message, sent_at
             FROM MESSAGES
-            WHERE (sender_id=:sender AND receiver_id=:receiver)
-               OR (sender_id=:receiver AND receiver_id=:sender)
+            WHERE (sender_id = :sender AND receiver_id = :receiver)
+               OR (sender_id = :receiver AND receiver_id = :sender)
             ORDER BY sent_at ASC
         """), {"sender": sender, "receiver": receiver})
         messages = []
@@ -409,7 +411,7 @@ def get_messages():
             messages.append({
                 "sender_id":    row[0],
                 "receiver_id":  row[1],
-                "message_text": row[2],  # ✅ consistent key
+                "message_text": row[2],
                 "sent_at":      str(row[3])
             })
         return jsonify(messages)
@@ -420,29 +422,35 @@ def get_messages():
 
 @app.route("/api/messages/threads", methods=["GET"])
 def get_threads():
-    user_id = request.args.get("user_id")
+    try:
+        user_id = int(request.args.get("user_id"))
+    except (TypeError, ValueError):
+        return jsonify([])
     try:
         result = db.session.execute(db.text("""
             SELECT DISTINCT
-                CASE WHEN m.sender_id = :user_id THEN m.receiver_id ELSE m.sender_id END AS partner_id,
+                CASE WHEN m.sender_id = :uid1 THEN m.receiver_id ELSE m.sender_id END AS partner_id,
                 u.name AS partner_name
             FROM MESSAGES m
-            JOIN USERS u ON u.id = CASE WHEN m.sender_id = :user_id THEN m.receiver_id ELSE m.sender_id END
-            WHERE m.sender_id = :user_id OR m.receiver_id = :user_id
-        """), {"user_id": user_id})
+            JOIN USERS u ON u.id = CASE WHEN m.sender_id = :uid2 THEN m.receiver_id ELSE m.sender_id END
+            WHERE m.sender_id = :uid3 OR m.receiver_id = :uid4
+        """), {"uid1": user_id, "uid2": user_id, "uid3": user_id, "uid4": user_id})
+
         threads = []
         for row in result:
             partner_id = row[0]
             last = db.session.execute(db.text("""
                 SELECT message, sent_at FROM MESSAGES
-                WHERE (sender_id=:uid AND receiver_id=:pid)
-                   OR (sender_id=:pid AND receiver_id=:uid)
+                WHERE (sender_id = :uid AND receiver_id = :pid)
+                   OR (sender_id = :pid AND receiver_id = :uid)
                 ORDER BY sent_at DESC FETCH FIRST 1 ROWS ONLY
             """), {"uid": user_id, "pid": partner_id}).fetchone()
+
             unread = db.session.execute(db.text("""
                 SELECT COUNT(*) FROM MESSAGES
-                WHERE sender_id=:pid AND receiver_id=:uid AND is_read=0
+                WHERE sender_id = :pid AND receiver_id = :uid AND is_read = 0
             """), {"uid": user_id, "pid": partner_id}).scalar()
+
             threads.append({
                 "seller_id":    partner_id,
                 "seller_name":  row[1],
@@ -458,13 +466,17 @@ def get_threads():
 
 @app.route("/api/messages/unread-count", methods=["GET"])
 def unread_count():
-    user_id = request.args.get("user_id")
+    try:
+        user_id = int(request.args.get("user_id"))
+    except (TypeError, ValueError):
+        return jsonify({"count": 0})
     try:
         count = db.session.execute(db.text("""
-            SELECT COUNT(*) FROM MESSAGES WHERE receiver_id=:uid AND is_read=0
+            SELECT COUNT(*) FROM MESSAGES WHERE receiver_id = :uid AND is_read = 0
         """), {"uid": user_id}).scalar()
         return jsonify({"count": count})
     except Exception as e:
+        print("UNREAD COUNT ERROR:", e)
         return jsonify({"count": 0})
 
 
@@ -478,7 +490,7 @@ def get_notifications():
             SELECT id, message, is_read, created_at FROM NOTIFICATIONS
             WHERE user_id = :user_id ORDER BY created_at DESC
             FETCH FIRST 20 ROWS ONLY
-        """), {"user_id": user_id})
+        """), {"user_id": int(user_id)})
         notifs = []
         for row in result:
             notifs.append({
@@ -509,6 +521,7 @@ def mark_notifications_read():
 
 ADMIN_PASSWORD = "adnu_admin_2024"
 
+
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
     data = request.get_json()
@@ -524,7 +537,8 @@ def admin_stats():
         products = db.session.execute(db.text("SELECT COUNT(*) FROM PRODUCTS")).scalar()
         messages = db.session.execute(db.text("SELECT COUNT(*) FROM MESSAGES")).scalar()
         cart     = db.session.execute(db.text("SELECT COUNT(*) FROM CART")).scalar()
-        return jsonify({"users": users, "products": products, "messages": messages, "cart_items": cart})
+        return jsonify({"users": users, "products": products,
+                        "messages": messages, "cart_items": cart})
     except Exception as e:
         return jsonify({"message": "Server error"}), 500
 
@@ -536,14 +550,11 @@ def admin_users():
             SELECT id, name, email, student_id_number, course, department, year_level
             FROM USERS ORDER BY id DESC
         """))
-        users = []
-        for row in result:
-            users.append({
-                "id": row[0], "name": row[1], "email": row[2],
-                "student_id": row[3], "course": row[4],
-                "department": row[5], "year_level": row[6]
-            })
-        return jsonify(users)
+        return jsonify([{
+            "id": r[0], "name": r[1], "email": r[2],
+            "student_id": r[3], "course": r[4],
+            "department": r[5], "year_level": r[6]
+        } for r in result])
     except Exception as e:
         return jsonify({"message": "Server error"}), 500
 
@@ -553,19 +564,17 @@ def admin_products():
     try:
         result = db.session.execute(db.text("""
             SELECT p.id, p.title, p.price, p.category, p.status,
-                   p.created_at, u.name AS seller_name
+                   p.created_at, u.name AS seller_name, p.image_url
             FROM PRODUCTS p LEFT JOIN USERS u ON p.seller_id = u.id
             ORDER BY p.id DESC
         """))
-        products = []
-        for row in result:
-            products.append({
-                "id": row[0], "title": row[1], "price": float(row[2]),
-                "category": row[3], "status": row[4],
-                "created_at": str(row[5]) if row[5] else None,
-                "seller_name": row[6]
-            })
-        return jsonify(products)
+        return jsonify([{
+            "id": r[0], "title": r[1], "price": float(r[2]),
+            "category": r[3], "status": r[4],
+            "created_at": str(r[5]) if r[5] else None,
+            "seller_name": r[6],
+            "image_url": f"http://127.0.0.1:5000{r[7]}" if r[7] else None
+        } for r in result])
     except Exception as e:
         return jsonify({"message": "Server error"}), 500
 
@@ -594,6 +603,35 @@ def admin_delete_user(user_id):
         return jsonify({"message": "User deleted"})
     except Exception as e:
         db.session.rollback()
+        return jsonify({"message": "Server error"}), 500
+
+
+# ✅ NEW: Admin messages route for the separate admin panel
+@app.route("/api/admin/messages", methods=["GET"])
+def admin_messages():
+    try:
+        result = db.session.execute(db.text("""
+            SELECT m.id, m.sender_id, m.receiver_id, m.message,
+                   m.sent_at, m.is_read,
+                   u1.name AS sender_name, u2.name AS receiver_name
+            FROM MESSAGES m
+            LEFT JOIN USERS u1 ON m.sender_id = u1.id
+            LEFT JOIN USERS u2 ON m.receiver_id = u2.id
+            ORDER BY m.sent_at DESC
+            FETCH FIRST 200 ROWS ONLY
+        """))
+        return jsonify([{
+            "id":            r[0],
+            "sender_id":     r[1],
+            "receiver_id":   r[2],
+            "message":       r[3],
+            "sent_at":       str(r[4]) if r[4] else None,
+            "is_read":       r[5],
+            "sender_name":   r[6] or str(r[1]),
+            "receiver_name": r[7] or str(r[2])
+        } for r in result])
+    except Exception as e:
+        print("ADMIN MESSAGES ERROR:", e)
         return jsonify({"message": "Server error"}), 500
 
 

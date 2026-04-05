@@ -187,8 +187,8 @@ const isDev = computed(() => window.location.hostname === 'localhost')
 
 // ✅ Pre-configured test accounts — change emails/passwords to match your DB
 const DEV_ACCOUNTS = {
-  seller: { email: 'dt@gbox.adnu.edu.ph', password: '202400926' },
-  buyer:  { email: 'deckertdotado@gbox.adnu.edu.ph',     password: '202400926' }
+  seller: { email: 'dtdotado@gbox.adnu.edu.ph', password: '202400926' },
+  buyer:  { email: 'deckertdotado@gbox.adnu.edu.ph',     password: 'kentrocky09' }
 }
 
 const quickLogin = async (role) => {
