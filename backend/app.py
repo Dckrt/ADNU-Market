@@ -1,8 +1,7 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-from flask import send_from_directory
 import oracledb
 import os
 
@@ -19,10 +18,14 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+db      = SQLAlchemy(app)
+bcrypt  = Bcrypt(app)
 
+# ✅ FIX: allow ALL origins on ALL routes (API + admin panel)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+
+# ── HELPERS ───────────────────────────────────────────────────────────────────
 
 def save_image(file):
     if not file:
@@ -45,17 +48,42 @@ def send_notification(user_id, message):
         db.session.rollback()
 
 
+# ── ROOT ──────────────────────────────────────────────────────────────────────
+
 @app.route("/")
 def home():
     return "Backend running!"
 
 
-# ================= AUTH ================= #
+# ── SERVE ADMIN PANEL ─────────────────────────────────────────────────────────
+# Must be defined BEFORE any catch-all routes.
+# Place your admin/ folder at the same level as your backend/ folder:
+#   project/
+#     backend/  ← app.py lives here
+#     admin/    ← index.html, admin.css, admin.js live here
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+ADMIN_FOLDER = os.path.join(_ROOT, 'admin')
+print(f'[ADMIN] Serving from: {ADMIN_FOLDER}')
+print(f'[ADMIN] Folder exists: {os.path.isdir(ADMIN_FOLDER)}')
+
+@app.route("/admin")
+@app.route("/admin/")
+def serve_admin():
+    return send_from_directory(ADMIN_FOLDER, 'index.html')
+
+@app.route("/admin/<path:filename>")
+def serve_admin_static(filename):
+    return send_from_directory(ADMIN_FOLDER, filename)
+
+
+# ── AUTH ──────────────────────────────────────────────────────────────────────
 
 @app.route("/api/register", methods=["POST"])
 def register():
-    data = request.get_json()
-    email = data.get("email", "")
+    data       = request.get_json()
+    email      = data.get("email", "")
     student_id = data.get("student_id_number", "")
     ALLOWED_TEST_EMAILS = ["deckertdotado@gbox.adnu.edu.ph"]
     if email not in ALLOWED_TEST_EMAILS and not email.endswith("@gbox.adnu.edu.ph"):
@@ -90,7 +118,7 @@ def register():
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json()
-    res = db.session.execute(
+    res  = db.session.execute(
         db.text("""SELECT id, name, email, password_hash,
                    student_id_number, course, year_level, department
             FROM USERS WHERE email = :email"""),
@@ -107,7 +135,7 @@ def login():
     return jsonify({"message": "Invalid password"}), 401
 
 
-# ================= PRODUCTS ================= #
+# ── PRODUCTS ──────────────────────────────────────────────────────────────────
 
 @app.route("/api/products", methods=["GET"])
 def get_products():
@@ -265,7 +293,7 @@ def delete_product(product_id):
         return jsonify({"message": "Server error"}), 500
 
 
-# ================= CART ================= #
+# ── CART ──────────────────────────────────────────────────────────────────────
 
 @app.route("/api/cart", methods=["GET"])
 def get_cart():
@@ -300,7 +328,7 @@ def get_cart():
 
 @app.route("/api/cart", methods=["POST"])
 def add_to_cart():
-    data = request.get_json()
+    data       = request.get_json()
     user_id    = data.get("user_id")
     product_id = data.get("product_id")
     try:
@@ -345,7 +373,7 @@ def remove_from_cart(cart_id):
         return jsonify({"message": "Server error"}), 500
 
 
-# ================= CHECKOUT ================= #
+# ── CHECKOUT ──────────────────────────────────────────────────────────────────
 
 @app.route("/api/checkout", methods=["POST"])
 def checkout():
@@ -363,11 +391,11 @@ def checkout():
         return jsonify({"message": "Server error"}), 500
 
 
-# ================= MESSAGES ================= #
+# ── MESSAGES ──────────────────────────────────────────────────────────────────
 
 @app.route("/api/messages", methods=["POST"])
 def send_message():
-    data = request.get_json()
+    data         = request.get_json()
     sender_id    = int(data.get("sender_id"))
     receiver_id  = int(data.get("receiver_id"))
     message_text = data.get("message_text") or data.get("content") or data.get("message")
@@ -481,7 +509,7 @@ def unread_count():
         return jsonify({"count": 0})
 
 
-# ================= NOTIFICATIONS ================= #
+# ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
 
 @app.route("/api/notifications", methods=["GET"])
 def get_notifications():
@@ -518,7 +546,7 @@ def mark_notifications_read():
         return jsonify({"message": "Server error"}), 500
 
 
-# ================= ADMIN ================= #
+# ── ADMIN ─────────────────────────────────────────────────────────────────────
 
 ADMIN_PASSWORD = "adnu_admin_2024"
 
@@ -607,7 +635,6 @@ def admin_delete_user(user_id):
         return jsonify({"message": "Server error"}), 500
 
 
-# ✅ NEW: Admin messages route for the separate admin panel
 @app.route("/api/admin/messages", methods=["GET"])
 def admin_messages():
     try:
@@ -635,16 +662,6 @@ def admin_messages():
         print("ADMIN MESSAGES ERROR:", e)
         return jsonify({"message": "Server error"}), 500
 
-# ✅ Serve admin panel
-@app.route("/admin")
-def serve_admin():
-    admin_folder = os.path.join(os.path.dirname(__file__), '..', 'admin')
-    return send_from_directory(admin_folder, 'index.html')
-
-@app.route("/admin/<path:filename>")
-def serve_admin_static(filename):
-    admin_folder = os.path.join(os.path.dirname(__file__), '..', 'admin')
-    return send_from_directory(admin_folder, filename)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
