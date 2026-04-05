@@ -47,6 +47,10 @@ export default {
   // CHECKOUT
   checkout: (data) => apiClient.post('/checkout', data),
 
+  // SELLER PAYMENT INFO
+  // Returns { gcash: '09XXXXXXXXX', bank: 'BDO - 0000000000' } or nulls if not set
+  getSellerPayment: (sellerId) => apiClient.get(`/users/${sellerId}/payment`),
+
   // MESSAGES
   sendMessage:   (data)                => apiClient.post('/messages', data),
   getMessages:   (userId, partnerId)   => apiClient.get('/messages', {
