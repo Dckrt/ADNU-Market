@@ -8,7 +8,7 @@
           <span class="brand-icon">🛍️</span>
           <span class="brand-name">ADNU <strong>Market</strong></span>
         </div>
-        <h1 class="tagline">Buy & sell within<br/>the Blue Eagle community.</h1>
+        <h1 class="tagline">Buy & sell within<br/>the Golden Knights community.</h1>
         <p class="sub-tagline">The official peer-to-peer marketplace for Ateneo de Naga University students.</p>
         <div class="trust-badges">
           <div class="badge"><span>✓</span> ADNU Students Only</div>

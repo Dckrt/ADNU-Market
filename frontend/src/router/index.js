@@ -9,7 +9,6 @@ import AddProduct from '@/views/AddProduct.vue'
 import ProductDetails from '@/views/ProductDetails.vue'
 import MessagesPage from '@/views/MessagesPage.vue'
 import ProductView from '@/views/ProductView.vue'
-import AdminPage from '@/views/AdminPage.vue'
 
 const routes = [
   { path: '/auth',             name: 'Auth',           component: AuthPage },
@@ -21,12 +20,8 @@ const routes = [
   { path: '/profile',          name: 'Profile',        component: Profile },
   { path: '/dashboard',        name: 'Dashboard',      component: Dashboard },
   { path: '/add-product',      name: 'AddProduct',     component: AddProduct },
-
-  // ✅ FIXED: /messages is the real route, /chat now redirects to it
-  { path: '/messages',         name: 'Messages',       component: MessagesPage },
-  { path: '/chat',             redirect: '/messages' },
-
-  { path: '/admin',            name: 'Admin',          component: AdminPage },
+  { path: '/chat',             name: 'Chat',           component: MessagesPage },
+  { path: '/messages',         redirect: '/chat' },
   { path: '/:pathMatch(.*)*',  redirect: '/' }
 ]
 
