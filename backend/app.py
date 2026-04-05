@@ -21,7 +21,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 db      = SQLAlchemy(app)
 bcrypt  = Bcrypt(app)
 
-# ✅ FIX: allow ALL origins on ALL routes (API + admin panel)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 
@@ -56,11 +55,6 @@ def home():
 
 
 # ── SERVE ADMIN PANEL ─────────────────────────────────────────────────────────
-# Must be defined BEFORE any catch-all routes.
-# Place your admin/ folder at the same level as your backend/ folder:
-#   project/
-#     backend/  ← app.py lives here
-#     admin/    ← index.html, admin.css, admin.js live here
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
@@ -378,11 +372,19 @@ def remove_from_cart(cart_id):
 @app.route("/api/checkout", methods=["POST"])
 def checkout():
     data = request.get_json()
+    user_id    = data.get("user_id")
+    cart_id    = data.get("cart_id")   # if coming from cart modal (single item)
+    product_id = data.get("product_id")
     try:
-        db.session.execute(
-            db.text("DELETE FROM CART WHERE user_id = :user_id"),
-            {"user_id": data.get("user_id")}
-        )
+        if cart_id:
+            # Place order for one specific cart item only
+            db.session.execute(
+                db.text("DELETE FROM CART WHERE id = :cart_id AND user_id = :user_id"),
+                {"cart_id": cart_id, "user_id": user_id}
+            )
+        else:
+            # Buy Now flow — no cart row to delete, just record the order
+            pass
         db.session.commit()
         return jsonify({"message": "Order placed successfully"})
     except Exception as e:
@@ -543,6 +545,49 @@ def mark_notifications_read():
         return jsonify({"message": "Marked as read"})
     except Exception as e:
         db.session.rollback()
+        return jsonify({"message": "Server error"}), 500
+
+
+# ── SELLER PAYMENT INFO ───────────────────────────────────────────────────────
+# Requires these columns in USERS table (run once in Oracle):
+#   ALTER TABLE USERS ADD gcash_number VARCHAR2(20);
+#   ALTER TABLE USERS ADD bank_details VARCHAR2(200);
+
+@app.route("/api/users/<int:user_id>/payment", methods=["GET"])
+def get_seller_payment(user_id):
+    try:
+        res = db.session.execute(db.text("""
+            SELECT gcash_number, bank_details FROM USERS WHERE id = :id
+        """), {"id": user_id}).fetchone()
+        if not res:
+            return jsonify({"gcash": None, "bank": None})
+        return jsonify({
+            "gcash": res[0] if res[0] else None,
+            "bank":  res[1] if res[1] else None
+        })
+    except Exception as e:
+        print("GET SELLER PAYMENT ERROR:", e)
+        # Return nulls gracefully — frontend shows "coordinate with seller via chat"
+        return jsonify({"gcash": None, "bank": None})
+
+
+@app.route("/api/users/<int:user_id>/payment", methods=["PUT"])
+def update_seller_payment(user_id):
+    """Sellers call this from their Profile page to set their GCash/bank details."""
+    data = request.get_json()
+    try:
+        db.session.execute(db.text("""
+            UPDATE USERS SET gcash_number = :gcash, bank_details = :bank WHERE id = :id
+        """), {
+            "gcash": data.get("gcash"),
+            "bank":  data.get("bank"),
+            "id":    user_id
+        })
+        db.session.commit()
+        return jsonify({"message": "Payment details updated"})
+    except Exception as e:
+        db.session.rollback()
+        print("UPDATE PAYMENT ERROR:", e)
         return jsonify({"message": "Server error"}), 500
 
 
